@@ -64,6 +64,13 @@
       "when": 1793500000000,
       "tag": "0008_monday_checklist",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1793500000001,
+      "tag": "0009_currency_and_weekly_time",
+      "breakpoints": true
     }
   ]
 }
