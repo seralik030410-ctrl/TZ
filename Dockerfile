@@ -16,4 +16,4 @@ COPY --from=build /app/db/migrations ./db/migrations
 RUN npm ci --omit=dev --ignore-scripts=false
 ENV PORT=3000
 EXPOSE 3000
-CMD ["node", "dist/boot.js"]
+CMD ["node", "scripts/start.mjs"]

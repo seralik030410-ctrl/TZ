@@ -10,11 +10,15 @@ import { handleClientLog } from "./lib/clientlog";
 import { REQUEST_ID_HEADER, runWithRequestId } from "./lib/requestcontext";
 import { getDb } from "./queries/connection";
 import { sql } from "drizzle-orm";
+import { settings, taskTemplates, scheduleItems } from "../db/schema";
 
 const app = new Hono<{ Bindings: HttpBindings }>();
 
 // Railway gates deployments on this readiness endpoint.
-app.get("/health", async (c) => { try { await getDb().execute(sql`SELECT 1`); return c.json({ ok: true }); } catch { return c.json({ ok: false }, 503); } });
+app.get("/health", async (c) => { try {
+  await Promise.all([getDb().execute(sql`SELECT 1`), getDb().select().from(settings).limit(1), getDb().select().from(taskTemplates).limit(1), getDb().select().from(scheduleItems).limit(1)]);
+  return c.json({ ok: true });
+} catch { return c.json({ ok: false }, 503); } });
 
 // One middleware for both halves of request observability, because they need the
 // same scope and the same id:
