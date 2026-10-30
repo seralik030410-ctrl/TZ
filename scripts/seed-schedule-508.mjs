@@ -20,8 +20,10 @@ try {
     }
   }
   console.log(`Расписание группы 508 добавлено. Новых событий: ${inserted}; повторный запуск безопасен.`);
-} finally { await db.end(); }
+}
 const mondayTemplate = '50800000-0000-4000-8000-000000000001';
 await db.execute("INSERT IGNORE INTO task_templates (id,title,estimate_min,weekdays,starts_on,ends_on,paused,subtask_titles,is_deleted,created_at,updated_at) VALUES (?, 'Записать 5 человек', 30, '1', '2026-10-26', NULL, 0, ?, 0, ?, ?)", [mondayTemplate, JSON.stringify(['Имя 1','Имя 2','Имя 3','Имя 4','Имя 5']), Date.now(), Date.now()]);
 const mondayEvent = '50800000-0000-4000-8000-000000000002';
 await db.execute("INSERT IGNORE INTO schedule_items (id,title,kind,start_min,end_min,weekdays,week_parity,on_date,location,is_deleted,created_at,updated_at) VALUES (?, 'Записать 5 человек', 'work', 540, 570, '1', 'all', NULL, NULL, 0, ?, ?)", [mondayEvent, Date.now(), Date.now()]);
+finally { await db.end(); }
+
