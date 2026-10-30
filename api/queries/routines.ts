@@ -20,6 +20,11 @@ export async function materializeRoutines() {
     for (const template of templates.filter(t => repeatsOn(t, day))) {
       const id = occurrenceId(template.id, day);
       await tx.insert(tasks).values({ id, title: template.title, estimateMin: template.estimateMin, due: day, recurrence: template.id }).onDuplicateKeyUpdate({ set: { id } });
+      const titles = JSON.parse(template.subtaskTitles || "[]") as string[];
+      for (const [index, title] of titles.entries()) {
+        const childId = occurrenceId(`${template.id}:${index}`, day);
+        await tx.insert(tasks).values({ id: childId, title, due: day, parentId: id, position: index }).onDuplicateKeyUpdate({ set: { id: childId } });
+      }
     }
   });
 }

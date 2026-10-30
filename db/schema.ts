@@ -164,6 +164,7 @@ export const taskTemplates = mysqlTable("task_templates", {
   weekdays: varchar("weekdays", { length: 32 }),
   startsOn: varchar("starts_on", { length: 10 }).notNull(),
   endsOn: varchar("ends_on", { length: 10 }),
+  subtaskTitles: text("subtask_titles").notNull().default("[]"),
   paused: boolean("paused").notNull().default(false),
   ...syncFields(),
 });
