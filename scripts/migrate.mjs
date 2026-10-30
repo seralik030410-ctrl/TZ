@@ -43,5 +43,10 @@ try {
     } catch (error) { await connection.rollback(); throw error; }
     console.log(`Applied ${entry.tag}`);
   }
+  // Repair legacy schemas even when their migration journal already contains
+  // the initial migration (older installs may have been stamped by db:push).
+  for (const [column, definition] of Object.entries({ timezone: "varchar(80) NOT NULL DEFAULT 'Asia/Dushanbe'", agency_enabled: "boolean NOT NULL DEFAULT true", gold_enabled: "boolean NOT NULL DEFAULT true", debts_enabled: "boolean NOT NULL DEFAULT true", agency_goal: "int NOT NULL DEFAULT 10000000", agency_goal_currency: "varchar(8) NOT NULL DEFAULT 'TJS'" })) {
+    if (!await hasColumn("settings", column)) await connection.query(`ALTER TABLE settings ADD \`${column}\` ${definition}`);
+  }
   console.log("Database schema is up to date");
 } finally { await connection.query("SELECT RELEASE_LOCK('ritm_schema_migrations')").catch(() => {}); await connection.end(); }
