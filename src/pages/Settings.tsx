@@ -11,10 +11,10 @@ export default function Settings() {
   const { data, refresh } = useOutletContext<LayoutContext>();
   const utils = trpc.useUtils();
   const [name, setName] = useState(data.settings?.name ?? "Алекс");
-  const [currency, setCurrency] = useState(data.settings?.currency ?? "₽");
-  const [dailyLimit, setDailyLimit] = useState((data.settings?.dailyLimit ?? 180000) / 100);
-  const [monthlyLimit, setMonthlyLimit] = useState((data.settings?.monthlyLimit ?? 4500000) / 100);
-  const [cushion, setCushion] = useState((data.settings?.cushion ?? 500000) / 100);
+  const [currency, setCurrency] = useState(({ "₽": "RUB", "$": "USD" }[data.settings?.currency ?? ""] ?? data.settings?.currency ?? "TJS"));
+  const [dailyLimit, setDailyLimit] = useState((data.settings?.dailyLimit ?? 0) / 100);
+  const [monthlyLimit, setMonthlyLimit] = useState((data.settings?.monthlyLimit ?? 0) / 100);
+  const [cushion, setCushion] = useState((data.settings?.cushion ?? 0) / 100);
   const [workStart, setWorkStart] = useState(minutesToTime(data.settings?.workStartMin ?? 480));
   const [workEnd, setWorkEnd] = useState(minutesToTime(data.settings?.workEndMin ?? 1320));
   const [online, setOnline] = useState(navigator.onLine);
@@ -69,7 +69,7 @@ export default function Settings() {
           <form className="form-grid" onSubmit={submit}>
             <div className="form-row">
               <div className="field"><label htmlFor="settings-name">Как к вам обращаться</label><input id="settings-name" className="input" value={name} onChange={(event) => setName(event.target.value)} /></div>
-              <div className="field"><label htmlFor="settings-currency">Валюта</label><AppSelect id="settings-currency" className="select" value={currency} onChange={(event) => setCurrency(event.target.value)}><option value="₽">₽ — рубль</option><option value="$">$ — доллар</option><option value="€">€ — евро</option><option value="₸">₸ — тенге</option></AppSelect></div>
+              <div className="field"><label htmlFor="settings-currency">Валюта</label><AppSelect id="settings-currency" className="select" value={currency} onChange={(event) => setCurrency(event.target.value)}><option value="TJS">Сомони — TJS</option><option value="USD">Доллары — USD</option><option value="RUB">Рубли — RUB</option></AppSelect></div>
             </div>
             <div className="form-row">
               <div className="field"><label htmlFor="settings-work-start">Начало рабочего дня</label><input id="settings-work-start" className="input" type="time" value={workStart} onChange={(event) => setWorkStart(event.target.value)} /></div>

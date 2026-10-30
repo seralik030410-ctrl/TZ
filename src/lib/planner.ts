@@ -20,7 +20,7 @@ export const getUserTimezone = () => userTimezone;
 export const setUserTimezone = (value?: string) => { userTimezone = value || "Asia/Dushanbe"; };
 export const localDayKey = (date = new Date()) => dayInZone(date, userTimezone);
 
-export const formatMoney = (value: number, currency = "₽") =>
+export const formatMoney = (value: number, currency = "TJS") =>
   moneyText(value, normalizeCurrency(currency));
 
 export const minutesToTime = (minutes: number) =>

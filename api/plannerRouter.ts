@@ -335,7 +335,7 @@ export const plannerRouter = createRouter({
         id: z.string().uuid().optional(),
         kind: z.enum(["expense", "income"]),
         amount: z.number().int().positive().max(100_000_000),
-        currency: currencyCode.default("RUB"),
+        currency: currencyCode.default("TJS"),
         happenedAt: z.date().optional(),
         category: z.string().trim().min(1).max(80),
         note: z.string().max(1000).optional(),

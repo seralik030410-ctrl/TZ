@@ -53,7 +53,7 @@ export function moneyText(value: number, currency: string) {
   return new Intl.NumberFormat("ru-RU", { style: "currency", currency, maximumFractionDigits: 2 }).format(value / 100);
 }
 export const live = <T extends { isDeleted?: boolean }>(rows: T[]) => rows.filter(row => !row.isDeleted);
-export function normalizeCurrency(value = "RUB"): z.infer<typeof currencyCode> {
+export function normalizeCurrency(value = "TJS"): z.infer<typeof currencyCode> {
   const normalized = ({ "₽": "RUB", "$": "USD", "€": "EUR", "₸": "KZT", "сом": "TJS" }[value] ?? value);
   return currencyCode.parse(normalized);
 }

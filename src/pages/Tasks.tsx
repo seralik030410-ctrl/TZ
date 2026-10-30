@@ -1,3 +1,4 @@
+import { MonthNavigator } from "@/components/MonthNavigator";
 import { AppSelect, DateField } from "@/components/FormControls";
 import { useMemo, useState, type FormEvent } from "react";
 import { useOutletContext } from "react-router";
@@ -35,6 +36,7 @@ type TaskView = "list" | "board" | "matrix";
 export default function Tasks() {
   const { data, openQuickAdd } = useOutletContext<LayoutContext>();
   const utils = trpc.useUtils();
+  const [viewMonth, setViewMonth] = useState<string | null>(null);
   const [view, setView] = useState<TaskView>("list");
   const [filter, setFilter] = useState("active");
   const [projectFilter, setProjectFilter] = useState("all");
@@ -68,6 +70,7 @@ export default function Tasks() {
 
 
   const filtered = useMemo(() => data.tasks.filter((task) => {
+    if (viewMonth && !task.due?.startsWith(viewMonth)) return false;
     if (completedDay && (!task.completedAt || localDayKey(task.completedAt) !== completedDay)) return false;
     if (projectFilter !== "all" && task.projectId !== projectFilter) return false;
     if (filter === "active" && task.status === "done") return false;
@@ -75,7 +78,7 @@ export default function Tasks() {
     if (filter === "today" && task.due !== today) return false;
     if (filter === "overdue" && !(task.status !== "done" && task.due && task.due < today)) return false;
     return true;
-  }), [data.tasks, filter, projectFilter, today, completedDay]);
+  }), [data.tasks, filter, projectFilter, today, completedDay, viewMonth]);
 
   const counts = {
     active: data.tasks.filter((task) => task.status !== "done").length,
@@ -103,6 +106,7 @@ export default function Tasks() {
       <TaskInsights tasks={data.tasks.filter(t => projectFilter === "all" || t.projectId === projectFilter)} onSelect={day => { setCompletedDay(day); setFilter("done"); }} />
       {completedDay && <p className="small">Завершены {completedDay} <button className="text-button" onClick={() => setCompletedDay(null)}>Сбросить дату</button></p>}
 
+      <MonthNavigator value={viewMonth} onChange={setViewMonth} />
       <div className="filter-row" aria-label="Фильтры задач">
         {[
           ["active", `Активные ${counts.active}`],
@@ -164,7 +168,7 @@ function TaskCard({ task, data, onToggle, onEdit, onArchive, compact = false }: 
       </button>
       <div className="task-content">
         <p className="task-title">{task.title}</p>
-        <div className="task-meta">
+        <div className="task-meta">{task.plannedStart && <span>{new Intl.DateTimeFormat("ru-RU", { hour: "2-digit", minute: "2-digit", timeZone: data.settings?.timezone }).format(task.plannedStart)}</span>}
           {task.isMit && <span className="mit-mark"><Star size={12} fill="currentColor" />Главная</span>}
           {project && <span><span className="dot" style={{ background: projectColor[project.type] }} />{project.name}</span>}
           {task.due && <span style={overdue ? { color: "var(--danger)" } : undefined}><CalendarDays size={12} />{dayLabel(task.due)}</span>}
@@ -212,6 +216,8 @@ function TaskEditor({ task, data, onClose, onSave, onSubtaskToggle, onAddSubtask
   const [importance, setImportance] = useState(task.importance);
   const [projectId, setProjectId] = useState(task.projectId ?? "");
   const [dependsOn, setDependsOn] = useState(task.dependsOn ?? "");
+  const subtaskUtils = trpc.useUtils();
+  const renameSubtask = trpc.planner.tasks.update.useMutation({ onSuccess: () => subtaskUtils.planner.bootstrap.invalidate(), onError: error => toast.error(error.message) });
   const [subtaskTitle, setSubtaskTitle] = useState("");
   const [addingSubtask, setAddingSubtask] = useState(false);
   const [status, setStatus] = useState<"plan" | "doing" | "done">(task.status as "plan" | "doing" | "done");
@@ -239,7 +245,7 @@ function TaskEditor({ task, data, onClose, onSave, onSubtaskToggle, onAddSubtask
           <div className="field"><label htmlFor="edit-task-status">Статус</label><AppSelect id="edit-task-status" className="select" value={status} onChange={(event) => setStatus(event.target.value as typeof status)}><option value="plan">План</option><option value="doing">В работе</option><option value="done">Готово</option></AppSelect></div>
         </div>
         <div className="field"><label htmlFor="edit-task-dependency">Начать после</label><AppSelect id="edit-task-dependency" className="select" value={dependsOn} onChange={(event) => setDependsOn(event.target.value)}><option value="">Без зависимости</option>{data.tasks.filter(item => item.id !== task.id && !item.isDeleted).map(item => <option key={item.id} value={item.id}>{item.title}{item.status === "done" ? " · готово" : ""}</option>)}</AppSelect><small className="muted">Задачу нельзя завершить, пока эта не готова.</small></div>
-        {!task.parentId && <section className="card task-subtasks"><div className="section-title"><h3>Подзадачи</h3><span className="badge">{data.tasks.filter(item => item.parentId === task.id && item.status === "done").length}/{data.tasks.filter(item => item.parentId === task.id).length}</span></div>{data.tasks.filter(item => item.parentId === task.id).map(child => <div className="list-row" key={child.id}><button type="button" className={`task-check ${child.status === "done" ? "checked" : ""}`} aria-label={child.status === "done" ? `Вернуть подзадачу «${child.title}»` : `Выполнить подзадачу «${child.title}»`} onClick={() => onSubtaskToggle(child)}>{child.status === "done" && <Check size={14} />}</button><span className="list-row-main">{child.title}</span></div>)}<div className="form-row"><input className="input" aria-label="Название подзадачи" placeholder="Добавить маленький шаг" value={subtaskTitle} onChange={event => setSubtaskTitle(event.target.value)} /><button className="button button-ghost" type="button" disabled={!subtaskTitle.trim() || addingSubtask} onClick={async () => { setAddingSubtask(true); try { await onAddSubtask(task, subtaskTitle.trim()); setSubtaskTitle(""); } catch (error) { setError((error as Error).message); } finally { setAddingSubtask(false); } }}>{addingSubtask ? "Добавляем…" : "Добавить"}</button></div><small className="muted">Задачу нельзя завершить, пока не готовы все шаги.</small></section>}
+        {!task.parentId && <section className="card task-subtasks"><div className="section-title"><h3>Подзадачи</h3><span className="badge">{data.tasks.filter(item => item.parentId === task.id && item.status === "done").length}/{data.tasks.filter(item => item.parentId === task.id).length}</span></div>{data.tasks.filter(item => item.parentId === task.id).map(child => <div className="list-row" key={child.id}><button type="button" className={`task-check ${child.status === "done" ? "checked" : ""}`} aria-label={child.status === "done" ? `Вернуть подзадачу «${child.title}»` : `Выполнить подзадачу «${child.title}»`} onClick={() => onSubtaskToggle(child)}>{child.status === "done" && <Check size={14} />}</button><input className="input list-row-main" aria-label={`Имя или название подзадачи: ${child.title}`} defaultValue={child.title} maxLength={240} onBlur={event => { const title = event.currentTarget.value.trim(); if (title && title !== child.title) renameSubtask.mutate({ id: child.id, title }); else if (!title) event.currentTarget.value = child.title; }} onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); } }} /></div>)}<div className="form-row"><input className="input" aria-label="Название подзадачи" placeholder="Добавить маленький шаг" value={subtaskTitle} onChange={event => setSubtaskTitle(event.target.value)} /><button className="button button-ghost" type="button" disabled={!subtaskTitle.trim() || addingSubtask} onClick={async () => { setAddingSubtask(true); try { await onAddSubtask(task, subtaskTitle.trim()); setSubtaskTitle(""); } catch (error) { setError((error as Error).message); } finally { setAddingSubtask(false); } }}>{addingSubtask ? "Добавляем…" : "Добавить"}</button></div><small className="muted">Задачу нельзя завершить, пока не готовы все шаги.</small></section>}
         <div className="form-row">
           <div className="field"><label htmlFor="edit-task-importance">Важность</label><AppSelect id="edit-task-importance" className="select" value={importance} onChange={(event) => setImportance(Number(event.target.value))}><option value={1}>1 — можно позже</option><option value={2}>2 — важно</option><option value={3}>3 — критично</option></AppSelect></div>
           <div className="field"><label htmlFor="edit-task-flexibility">Тип блока</label><AppSelect id="edit-task-flexibility" className="select" value={flexibility} onChange={(event) => setFlexibility(event.target.value as typeof flexibility)}><option value="flexible">Гибкое</option><option value="fixed">Фиксированное</option><option value="optional">По желанию</option></AppSelect></div>

@@ -100,11 +100,11 @@ export default function Today() {
   const spentMonth = data.transactions.filter((transaction) => transaction.kind === "expense" && localDayKey(transaction.happenedAt).startsWith(monthPrefix)).reduce((sum, transaction) => sum + transaction.amount, 0);
   
   const safeSpend = safeToSpendToday({
-    monthlyLimit: data.settings?.monthlyLimit ?? 4500000,
+    monthlyLimit: data.settings?.monthlyLimit ?? 0,
     spentThisMonth: spentMonth,
     mandatoryPayments: 0,
     savingsContributions: 0,
-    cushion: data.settings?.cushion ?? 500000,
+    cushion: data.settings?.cushion ?? 0,
     daysRemaining: daysLeftInMonth(today),
   });
 
@@ -178,7 +178,7 @@ export default function Today() {
           <section className="card metric-card">
             <WalletCards className="icon" size={19} />
             <p className="card-label">Безопасно потратить</p>
-            <p className="card-value number">{formatMoney(safeSpend, data.settings?.currency)}</p>
+            <p className="card-value number">{data.settings?.monthlyLimit ? formatMoney(safeSpend, data.settings?.currency) : "Бюджет не задан"}</p>
             <p className="metric-footer">Сегодня уже {formatMoney(spentToday, data.settings?.currency)}</p>
           </section>
           <section className="card metric-card">

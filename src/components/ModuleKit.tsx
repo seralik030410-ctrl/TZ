@@ -9,7 +9,7 @@ import { queueMutation, pendingMutations, type QueuedMutation } from "@/lib/offl
 import { downloadJson, minutesToTime, timeToMinutes, getUserTimezone } from "@/lib/planner";
 import { minorUnits, dayInZone, minutesInZone, zonedDateAt } from "@contracts/shared";
 
-export const currencies = ["TJS", "USD", "RUB", "EUR", "KZT"];
+export const currencies = ["TJS", "USD", "RUB"];
 export type Field = { key: string; label: string; type?: "text" | "date" | "time" | "datetime-local" | "money" | "decimal" | "number" | "textarea" | "checkbox" | "password"; options?: { value: string; label: string }[]; required?: boolean; hint?: string; value?: string | number | boolean | null };
 export const options = (items: Record<string, string>) => Object.entries(items).map(([value, label]) => ({ value, label }));
 export const currencyField: Field = { key: "currency", label: "Валюта", options: currencies.map(value => ({ value, label: value })), value: "TJS", required: true };

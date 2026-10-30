@@ -1,3 +1,4 @@
+import { MonthNavigator } from "@/components/MonthNavigator";
 import { AppSelect, DateField } from "@/components/FormControls";
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from "react";
 import { useOutletContext } from "react-router";
@@ -29,6 +30,7 @@ import {
 export default function Projects() {
   const { data } = useOutletContext<LayoutContext>();
   const utils = trpc.useUtils();
+  const [viewMonth, setViewMonth] = useState<string | null>(null);
   const [newProject, setNewProject] = useState(false);
   const [timerProject, setTimerProject] = useState<Project | null>(null);
   const [timerOpen, setTimerOpen] = useState(false);
@@ -82,8 +84,9 @@ export default function Projects() {
         <button className="button button-primary" type="button" onClick={() => openTimer()}>{data.activeTimer ? <Square size={17} /> : <Play size={17} />}{data.activeTimer ? "Завершить сессию" : "Начать фокус"}</button>
       </section>
 
+      <MonthNavigator value={viewMonth} onChange={setViewMonth} />
       <div className="project-grid stagger">
-        {data.projects.map((project) => {
+        {data.projects.filter(project => !viewMonth || project.deadline?.startsWith(viewMonth) || data.tasks.some(task => task.projectId === project.id && task.due?.startsWith(viewMonth))).map((project) => {
           const projectTasks = data.tasks.filter((task) => task.projectId === project.id);
           const openTasks = projectTasks.filter((task) => task.status !== "done");
           const todayMinutes = data.timeLogs.filter((log) => log.projectId === project.id && localDayKey(log.start) === today).reduce((sum, log) => sum + log.minutes, 0);

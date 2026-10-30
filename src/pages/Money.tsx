@@ -13,7 +13,7 @@ export default function Money() {
   const data = { ...context.data, transactions: context.data.transactions.filter(t => t.currency === normalizeCurrency(context.data.settings?.currency)) };
   const utils = trpc.useUtils();
   const [filter, setFilter] = useState<"all" | "expense" | "income">("all");
-  const currency = data.settings?.currency ?? "₽";
+  const currency = data.settings?.currency ?? "TJS";
   const today = localDayKey();
   const month = today.slice(0, 7);
   const monthTransactions = data.transactions.filter((transaction) => localDayKey(transaction.happenedAt).startsWith(month));
@@ -21,7 +21,7 @@ export default function Money() {
   const monthIncome = monthTransactions.filter((transaction) => transaction.kind === "income");
   const spent = monthExpenses.reduce((sum, transaction) => sum + transaction.amount, 0);
   const earned = monthIncome.reduce((sum, transaction) => sum + transaction.amount, 0);
-  const monthlyLimit = data.settings?.monthlyLimit ?? 4500000;
+  const monthlyLimit = data.settings?.monthlyLimit ?? 0;
   const remaining = monthlyLimit - spent;
   const safeSpend = safeToSpendToday({ monthlyLimit, spentThisMonth: spent, mandatoryPayments: 0, savingsContributions: 0, cushion: data.settings?.cushion ?? 0, daysRemaining: daysLeftInMonth(today) });
   const spentToday = data.transactions.filter((transaction) => transaction.kind === "expense" && localDayKey(transaction.happenedAt) === today).reduce((sum, transaction) => sum + transaction.amount, 0);
@@ -56,7 +56,7 @@ export default function Money() {
       <div className="money-hero">
         <section className="card dark-card">
           <p className="eyebrow" style={{ color: "oklch(0.74 0.02 70)" }}><ShieldCheck size={14} style={{ display: "inline", marginRight: 6 }} />С учётом подушки и оставшихся дней</p>
-          <p className="safe-value number">{formatMoney(safeSpend, currency)}</p>
+          <p className="safe-value number">{monthlyLimit > 0 ? formatMoney(safeSpend, currency) : "Задайте бюджет"}</p>
           <p className="subtitle">безопасно потратить сегодня</p>
           <div className="budget-grid" style={{ marginTop: 24 }}>
             <div className="budget-stat"><strong className="number">{formatMoney(spentToday, currency)}</strong><span>потрачено сегодня</span></div>
