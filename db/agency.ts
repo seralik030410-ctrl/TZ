@@ -1,0 +1,10 @@
+import { mysqlTable, varchar, text, boolean, int, timestamp } from "drizzle-orm/mysql-core";
+export const syncColumns = () => ({ id: varchar("id", { length: 36 }).primaryKey(), isDeleted: boolean("is_deleted").notNull().default(false), updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow() });
+const str = (name: string, length = 180) => varchar(name, { length }).notNull();
+const date = (name: string) => varchar(name, { length: 10 });
+export const clients = mysqlTable("clients", { ...syncColumns(), name: str("name"), phone: str("phone"), messenger: str("messenger"), source: str("source"), notes: text("notes").notNull() });
+export const deals = mysqlTable("deals", { ...syncColumns(), clientId: str("client_id", 36).references(() => clients.id), type: str("type", 16), title: str("title"), status: str("status", 16), requestedOn: str("requested_on", 10), departureOn: date("departure_on"), returnOn: date("return_on"), paymentDue: date("payment_due"), completedOn: date("completed_on"), sale: int("sale").notNull(), cost: int("cost").notNull(), commission: int("commission").notNull().default(0), currency: str("currency", 8) });
+export const agencyPayments = mysqlTable("payments", { ...syncColumns(), dealId: str("deal_id", 36).references(() => deals.id), amount: int("amount").notNull(), currency: str("currency", 8), date: str("date", 10), method: str("method", 80) });
+export const dealChecklist = mysqlTable("deal_checklist", { ...syncColumns(), dealId: str("deal_id", 36).references(() => deals.id), title: str("title"), done: boolean("done").notNull().default(false) });
+export const visas = mysqlTable("visas", { ...syncColumns(), dealId: str("deal_id", 36).references(() => deals.id), country: str("country"), type: str("type"), status: str("status", 16), submissionOn: date("submission_on"), readyOn: date("ready_on") });
+export const flights = mysqlTable("flights", { ...syncColumns(), dealId: str("deal_id", 36).references(() => deals.id), route: str("route"), airline: str("airline"), booking: str("booking", 80), departureAt: str("departure_at", 40), passengers: str("passengers") });

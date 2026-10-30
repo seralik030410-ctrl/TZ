@@ -1,0 +1,1 @@
+ALTER TABLE `schedule_items` ADD `on_date` varchar(10);

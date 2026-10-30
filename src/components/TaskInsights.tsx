@@ -1,0 +1,13 @@
+import { AppSelect } from "@/components/FormControls";
+import { useState } from "react";
+import { localDayKey, formatDuration, type Task } from "@/lib/planner";
+
+export function TaskInsights({ tasks, onSelect }: { tasks: Task[]; onSelect: (day: string) => void }) {
+  const [period, setPeriod] = useState(7);
+  const [table, setTable] = useState(false);
+  const today = localDayKey();
+  const days = Array.from({ length: period }, (_, i) => { const date = new Date(`${today}T12:00:00Z`); date.setUTCDate(date.getUTCDate() - period + i + 1); const day = date.toISOString().slice(0, 10); return { day, completed: tasks.filter(t => t.status === "done" && t.completedAt && localDayKey(t.completedAt) === day).length, minutes: tasks.filter(t => t.due === day && t.status !== "done").reduce((sum, t) => sum + t.estimateMin, 0) }; });
+  const max = Math.max(1, ...days.map(d => d.completed));
+  const unknown = tasks.filter(t => t.status === "done" && !t.completedAt).length;
+  return <section className="card task-insights"><div className="section-title" style={{ margin: 0 }}><div><p className="eyebrow">Маленькие шаги складываются</p><h2>Завершения по дням</h2></div><div className="action-row"><AppSelect className="select" aria-label="Период аналитики задач" value={period} onChange={e => setPeriod(Number(e.target.value))}><option value={7}>7 дней</option><option value={30}>30 дней</option></AppSelect><button className="text-button" onClick={() => setTable(v => !v)}>{table ? "График" : "Таблица"}</button></div></div><p className="small muted">Завершено за период: {days.reduce((s, d) => s + d.completed, 0)}. Нажмите день, чтобы открыть задачи.</p>{table ? <div className="task-insights-table"><table><thead><tr><th>Дата</th><th>Готово</th><th>Открытые задачи со сроком на день</th></tr></thead><tbody>{days.map(d => <tr key={d.day}><td><button className="text-button" onClick={() => onSelect(d.day)}>{d.day}</button></td><td>{d.completed}</td><td>{formatDuration(d.minutes)}</td></tr>)}</tbody></table></div> : <div className="task-completion-chart" style={{ gridTemplateColumns: `repeat(${period}, minmax(0, 1fr))` }}>{days.map(d => <button key={d.day} title={`${d.day}: ${d.completed} завершено`} aria-label={`${d.day}: ${d.completed} завершено, показать задачи`} onClick={() => onSelect(d.day)}><span className="task-completion-value">{d.completed || ""}</span><span className="task-completion-bar" style={{ height: Math.max(3, d.completed / max * 95) }} /><span className="task-completion-label">{period === 7 || Number(d.day.slice(8)) % 5 === 0 ? d.day.slice(8) : "·"}</span></button>)}</div>}{unknown > 0 && <p className="micro muted">У {unknown} ранее завершённых задач нет точной даты. Они не включены в график.</p>}</section>;
+}

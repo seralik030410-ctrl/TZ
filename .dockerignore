@@ -1,0 +1,13 @@
+node_modules
+dist
+.git
+*.swp
+*.log
+.env
+.env.*
+!.env.example
+.runtime
+tmp
+node_modules
+*.pdf
+*.zip

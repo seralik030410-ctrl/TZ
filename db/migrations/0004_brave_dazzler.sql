@@ -1,0 +1,1 @@
+ALTER TABLE `gold_trades` ADD `closed_at` varchar(40);
