@@ -35,6 +35,8 @@ export default function App() {
   const [readyAccount, setReadyAccount] = useState<string | null>(null);
   useEffect(() => {
     setOfflineAccount(null);
+    // Prevent the previous profile cache from rendering while another account is loading.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setReadyAccount(null);
     let disposed = false;
     const switchAccount = async () => {

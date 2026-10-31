@@ -7,9 +7,12 @@ import type { AppRouter } from "../../api/router";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { ReactNode } from "react";
 
+// Shared singleton exports are consumed by hooks across the app, so this provider module also exposes them.
+// eslint-disable-next-line react-refresh/only-export-components
 export const trpc = createTRPCReact<AppRouter>();
 export type RouterOutputs = inferRouterOutputs<AppRouter>;
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const queryClient = new QueryClient();
 const trpcClient = trpc.createClient({
   links: [splitLink({
