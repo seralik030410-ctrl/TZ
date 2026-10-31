@@ -1,3 +1,5 @@
+import { SharedAccess } from "@/components/SharedAccess";
+import { accountStorageKey } from "@/lib/offline";
 import { MonthNavigator } from "@/components/MonthNavigator";
 import { AppSelect, DateField } from "@/components/FormControls";
 import { useMemo, useState, type FormEvent } from "react";
@@ -23,6 +25,7 @@ import { trpc } from "@/providers/trpc";
 import {
   dayLabel,
   formatDuration,
+  minutesToTime,
   localDayKey,
   projectColor,
   projectTypeLabel,
@@ -41,7 +44,7 @@ export default function Tasks() {
   const [filter, setFilter] = useState("active");
   const [projectFilter, setProjectFilter] = useState("all");
   const [editing, setEditing] = useState<Task | null>(null);
-  const [lastMove, setLastMove] = useState<string | null>(() => localStorage.getItem("ritm-last-task-move"));
+  const [lastMove, setLastMove] = useState<string | null>(() => localStorage.getItem(accountStorageKey("ritm-last-task-move")));
   const [completedDay, setCompletedDay] = useState<string | null>(null);
   const today = localDayKey();
   const tomorrow = addCalendarDays(today, 1);
@@ -100,7 +103,7 @@ export default function Tasks() {
         <button type="button" className={view === "matrix" ? "active" : ""} onClick={() => setView("matrix")} role="tab" aria-selected={view === "matrix"}>Матрица</button>
       </div>
       {<div className="task-actions-toolbar">
-        {lastMove && <button className="button button-ghost" onClick={async () => { try { await moduleMutation("planner.tasks.undoReorder", { operationId: lastMove }); setLastMove(null); localStorage.removeItem("ritm-last-task-move"); await refresh(); } catch (error) { toast.error((error as Error).message); } }}>Отменить перемещение</button>}
+        {lastMove && <button className="button button-ghost" onClick={async () => { try { await moduleMutation("planner.tasks.undoReorder", { operationId: lastMove }); setLastMove(null); localStorage.removeItem(accountStorageKey("ritm-last-task-move")); await refresh(); } catch (error) { toast.error((error as Error).message); } }}>Отменить перемещение</button>}
         <RoutineTemplates />
       </div>}
       <TaskInsights tasks={data.tasks.filter(t => projectFilter === "all" || t.projectId === projectFilter)} onSelect={day => { setCompletedDay(day); setFilter("done"); }} />
@@ -124,7 +127,7 @@ export default function Tasks() {
         <section className="card empty-state"><CheckSquare2 size={32} /><strong>Здесь пока пусто</strong><p>{filter === "done" ? "Выполненные задачи появятся после первой отметки." : "Добавьте одну конкретную задачу — с неё начнётся порядок."}</p><button className="button button-primary" type="button" onClick={() => openQuickAdd("task")}><Plus size={17} />Добавить задачу</button></section>
       )}
 
-      {(view === "list" || view === "board") && <TaskDragBoard key={filtered.map(t => `${t.id}:${t.position}:${t.status}:${t.updatedAt}`).join("|")} tasks={filtered} board={view === "board"} render={task => <TaskCard task={task} data={data} onToggle={toggle} onEdit={edit} onArchive={archive} compact={view === "board"} />} onMove={async (id, beforeId, status) => { const operationId = crypto.randomUUID(); const expectedPositions = data.tasks.filter(task => !task.isDeleted).map(({ id: taskId, position, status: currentStatus }) => ({ id: taskId, position, status: currentStatus as "plan" | "doing" | "done" })); await moduleMutation("planner.tasks.reorder", { operationId, id, beforeId, status, expectedPositions }); setLastMove(operationId); localStorage.setItem("ritm-last-task-move", operationId); if (navigator.onLine) await refresh(); }} />}
+      {(view === "list" || view === "board") && <TaskDragBoard key={filtered.map(t => `${t.id}:${t.position}:${t.status}:${t.updatedAt}`).join("|")} tasks={filtered} board={view === "board"} render={task => <TaskCard task={task} data={data} onToggle={toggle} onEdit={edit} onArchive={archive} compact={view === "board"} />} onMove={async (id, beforeId, status) => { const operationId = crypto.randomUUID(); const expectedPositions = data.tasks.filter(task => !task.isDeleted).map(({ id: taskId, position, status: currentStatus }) => ({ id: taskId, position, status: currentStatus as "plan" | "doing" | "done" })); await moduleMutation("planner.tasks.reorder", { operationId, id, beforeId, status, expectedPositions }); setLastMove(operationId); localStorage.setItem(accountStorageKey("ritm-last-task-move"), operationId); if (navigator.onLine) await refresh(); }} />}
 
       {view === "matrix" && (
         <div className="matrix">
@@ -145,7 +148,7 @@ export default function Tasks() {
         </div>
       )}
 
-      {editing && <TaskEditor task={editing} data={data} onClose={() => setEditing(null)} onSave={(input) => update.mutate(input)} onSubtaskToggle={toggle} onAddSubtask={async (parent, title) => { await moduleMutation("planner.tasks.create", { id: crypto.randomUUID(), title, projectId: parent.projectId, stageId: parent.stageId, parentId: parent.id }); if (navigator.onLine) await refresh(); }} pending={update.isPending} />}
+      {editing && <TaskEditor task={editing} data={data} onClose={() => setEditing(null)} onSave={(input) => update.mutate(input)} onSubtaskToggle={toggle} onAddSubtask={async (parent, title) => { await moduleMutation("planner.tasks.create", { id: crypto.randomUUID(), title, projectId: parent.projectId, stageId: parent.stageId, parentId: parent.id, workspaceId: parent.workspaceId }); if (navigator.onLine) await refresh(); }} pending={update.isPending} />}
     </div>
   );
 }
@@ -170,6 +173,7 @@ function TaskCard({ task, data, onToggle, onEdit, onArchive, compact = false }: 
         <p className="task-title">{task.title}</p>
         <div className="task-meta">{task.plannedStart && <span>{new Intl.DateTimeFormat("ru-RU", { hour: "2-digit", minute: "2-digit", timeZone: data.settings?.timezone }).format(task.plannedStart)}</span>}
           {task.isMit && <span className="mit-mark"><Star size={12} fill="currentColor" />Главная</span>}
+          {task.workspaceId && <span className="badge">Общее</span>}
           {project && <span><span className="dot" style={{ background: projectColor[project.type] }} />{project.name}</span>}
           {task.due && <span style={overdue ? { color: "var(--danger)" } : undefined}><CalendarDays size={12} />{dayLabel(task.due)}</span>}
           <span><Clock3 size={12} />{formatDuration(task.estimateMin)}</span>
@@ -200,6 +204,9 @@ function TaskEditor({ task, data, onClose, onSave, onSubtaskToggle, onAddSubtask
     estimateMin?: number;
     importance?: number;
     projectId?: string | null;
+    stageId?: string | null;
+    scheduleItemId?: string | null;
+    workspaceId?: string | null;
     dependsOn?: string | null;
     status?: "plan" | "doing" | "done";
     isMit?: boolean;
@@ -215,6 +222,10 @@ function TaskEditor({ task, data, onClose, onSave, onSubtaskToggle, onAddSubtask
   const [estimateMin, setEstimateMin] = useState(task.estimateMin);
   const [importance, setImportance] = useState(task.importance);
   const [projectId, setProjectId] = useState(task.projectId ?? "");
+  const [stageId, setStageId] = useState(task.stageId ?? "");
+  const [scheduleItemId, setScheduleItemId] = useState(task.scheduleItemId ?? "");
+  const scheduleOptions = data.schedule.filter(item => !item.onDate || item.onDate === due);
+  const [workspaceId, setWorkspaceId] = useState(task.workspaceId ?? "");
   const [dependsOn, setDependsOn] = useState(task.dependsOn ?? "");
   const subtaskUtils = trpc.useUtils();
   const renameSubtask = trpc.planner.tasks.update.useMutation({ onSuccess: () => subtaskUtils.planner.bootstrap.invalidate(), onError: error => toast.error(error.message) });
@@ -228,22 +239,26 @@ function TaskEditor({ task, data, onClose, onSave, onSubtaskToggle, onAddSubtask
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (!title.trim()) return setError("Название не может быть пустым");
-    onSave({ id: task.id, title: title.trim(), notes: notes || null, due: due || null, estimateMin, importance, projectId: projectId || null, dependsOn: dependsOn || null, status, isMit, flexibility });
+    const selectedWorkspaceId = data.projects.find(project => project.id === projectId)?.workspaceId ?? (workspaceId || null);
+    onSave({ id: task.id, title: title.trim(), notes: notes || null, due: due || null, estimateMin, importance, projectId: projectId || null, stageId: stageId || null, scheduleItemId: selectedWorkspaceId ? null : scheduleItemId || null, workspaceId: selectedWorkspaceId, dependsOn: dependsOn || null, status, isMit, flexibility });
   };
 
   return (
     <Modal title="Настроить задачу" onClose={onClose}>
       <form className="form-grid" onSubmit={submit}>
         <div className="field"><label htmlFor="edit-task-title">Название</label><input id="edit-task-title" className="input" value={title} onChange={(event) => setTitle(event.target.value)} /></div>
+        <SharedAccess id="edit-task-access" data={data} value={workspaceId} onChange={setWorkspaceId} projectId={projectId} />
         <div className="field"><label htmlFor="edit-task-notes">Описание</label><textarea id="edit-task-notes" className="textarea" value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Детали, ссылки, критерий результата…" /></div>
         <div className="form-row">
-          <div className="field"><label htmlFor="edit-task-due">Срок</label><DateField id="edit-task-due" className="input" value={due} onChange={(event) => setDue(event.target.value)} /></div>
+          <div className="field"><label htmlFor="edit-task-due">Срок</label><DateField id="edit-task-due" className="input" value={due} onChange={event => { const next = event.target.value; setDue(next); const linkedEvent = data.schedule.find(item => item.id === scheduleItemId); if (linkedEvent?.onDate && linkedEvent.onDate !== next) setScheduleItemId(""); }} /></div>
           <div className="field"><label htmlFor="edit-task-estimate">Оценка, минут</label><input id="edit-task-estimate" className="input" type="number" min={15} step={15} value={estimateMin} onChange={(event) => setEstimateMin(Number(event.target.value))} /></div>
         </div>
         <div className="form-row">
-          <div className="field"><label htmlFor="edit-task-project">Проект</label><AppSelect id="edit-task-project" className="select" value={projectId} onChange={(event) => setProjectId(event.target.value)}><option value="">Без проекта</option>{data.projects.map((project) => <option key={project.id} value={project.id}>{project.name} · {projectTypeLabel[project.type]}</option>)}</AppSelect></div>
+          <div className="field"><label htmlFor="edit-task-project">Проект</label><AppSelect id="edit-task-project" className="select" value={projectId} onChange={(event) => { const next = event.target.value; setProjectId(next); setStageId(data.stages.find(stage => stage.projectId === next)?.id ?? ""); }}><option value="">Без проекта</option>{data.projects.map((project) => <option key={project.id} value={project.id}>{project.name} · {projectTypeLabel[project.type]}</option>)}</AppSelect></div>
           <div className="field"><label htmlFor="edit-task-status">Статус</label><AppSelect id="edit-task-status" className="select" value={status} onChange={(event) => setStatus(event.target.value as typeof status)}><option value="plan">План</option><option value="doing">В работе</option><option value="done">Готово</option></AppSelect></div>
         </div>
+        {projectId && <div className="field"><label htmlFor="edit-task-stage">Этап проекта</label><AppSelect id="edit-task-stage" className="select" value={stageId} onChange={event => setStageId(event.target.value)}><option value="">Без этапа</option>{data.stages.filter(stage => stage.projectId === projectId).sort((a,b) => a.position-b.position).map(stage => <option key={stage.id} value={stage.id}>{stage.name}</option>)}</AppSelect></div>}
+        {!data.projects.find(project => project.id === projectId)?.workspaceId && <div className="field"><label htmlFor="edit-task-schedule">Встроить в расписание</label><AppSelect id="edit-task-schedule" className="select" value={scheduleItemId} onChange={event => setScheduleItemId(event.target.value)}><option value="">Без привязки</option>{scheduleOptions.map(item => <option value={item.id} key={item.id}>{item.title} · {item.onDate ?? `повтор ${item.weekdays}`} · {minutesToTime(item.startMin)}</option>)}</AppSelect><small className="muted">Покажет задачу внутри события в этот день.</small></div>}
         <div className="field"><label htmlFor="edit-task-dependency">Начать после</label><AppSelect id="edit-task-dependency" className="select" value={dependsOn} onChange={(event) => setDependsOn(event.target.value)}><option value="">Без зависимости</option>{data.tasks.filter(item => item.id !== task.id && !item.isDeleted).map(item => <option key={item.id} value={item.id}>{item.title}{item.status === "done" ? " · готово" : ""}</option>)}</AppSelect><small className="muted">Задачу нельзя завершить, пока эта не готова.</small></div>
         {!task.parentId && <section className="card task-subtasks"><div className="section-title"><h3>Подзадачи</h3><span className="badge">{data.tasks.filter(item => item.parentId === task.id && item.status === "done").length}/{data.tasks.filter(item => item.parentId === task.id).length}</span></div>{data.tasks.filter(item => item.parentId === task.id).map(child => <div className="list-row" key={child.id}><button type="button" className={`task-check ${child.status === "done" ? "checked" : ""}`} aria-label={child.status === "done" ? `Вернуть подзадачу «${child.title}»` : `Выполнить подзадачу «${child.title}»`} onClick={() => onSubtaskToggle(child)}>{child.status === "done" && <Check size={14} />}</button><input className="input list-row-main" aria-label={`Имя или название подзадачи: ${child.title}`} defaultValue={child.title} maxLength={240} onBlur={event => { const title = event.currentTarget.value.trim(); if (title && title !== child.title) renameSubtask.mutate({ id: child.id, title }); else if (!title) event.currentTarget.value = child.title; }} onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); } }} /></div>)}<div className="form-row"><input className="input" aria-label="Название подзадачи" placeholder="Добавить маленький шаг" value={subtaskTitle} onChange={event => setSubtaskTitle(event.target.value)} /><button className="button button-ghost" type="button" disabled={!subtaskTitle.trim() || addingSubtask} onClick={async () => { setAddingSubtask(true); try { await onAddSubtask(task, subtaskTitle.trim()); setSubtaskTitle(""); } catch (error) { setError((error as Error).message); } finally { setAddingSubtask(false); } }}>{addingSubtask ? "Добавляем…" : "Добавить"}</button></div><small className="muted">Задачу нельзя завершить, пока не готовы все шаги.</small></section>}
         <div className="form-row">

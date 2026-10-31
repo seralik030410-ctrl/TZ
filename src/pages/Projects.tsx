@@ -1,3 +1,4 @@
+import { SharedAccess } from "@/components/SharedAccess";
 import { MonthNavigator } from "@/components/MonthNavigator";
 import { AppSelect, DateField } from "@/components/FormControls";
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from "react";
@@ -34,6 +35,8 @@ export default function Projects() {
   const [newProject, setNewProject] = useState(false);
   const [timerProject, setTimerProject] = useState<Project | null>(null);
   const [timerOpen, setTimerOpen] = useState(false);
+  const [stageFor, setStageFor] = useState<string | null>(null);
+  const [stageName, setStageName] = useState("");
   const today = localDayKey();
 
   const refresh = async () => { await utils.planner.bootstrap.invalidate(); };
@@ -49,6 +52,7 @@ export default function Projects() {
     onSuccess: async (result) => { await refresh(); toast.success(`Готово: расставлено блоков — ${result.count}`); },
     onError: (error) => toast.error(error.message),
   });
+  const createStage = trpc.planner.stages.create.useMutation({ onSuccess: async () => { await refresh(); toast.success("Этап добавлен"); }, onError: error => toast.error(error.message) });
 
   const openTimer = (project?: Project) => {
     const activeProject = data.activeTimer ? data.projects.find((item) => item.id === data.activeTimer?.projectId) : undefined;
@@ -59,8 +63,10 @@ export default function Projects() {
   const planStage = (project: Project) => {
     const stage = data.stages.find((item) => item.projectId === project.id && item.status === "active");
     if (!stage) return toast.info("Сначала добавьте активный этап проекту");
-    const count = data.tasks.filter((task) => task.stageId === stage.id && task.status !== "done").length;
-    if (!count) return toast.info("В этом этапе нет открытых задач");
+    const openStageTasks = data.tasks.filter((task) => (task.stageId === stage.id || (!task.stageId && task.projectId === project.id)) && task.status !== "done");
+    const plannedIds = new Set(data.scheduledBlocks.filter(block => !block.isDeleted && block.status === "planned").map(block => block.taskId));
+    const count = openStageTasks.filter(task => !plannedIds.has(task.id)).length;
+    if (!count) return toast.info(openStageTasks.length ? "Все открытые задачи этапа уже стоят в расписании" : "В этом этапе нет открытых задач");
     if (window.confirm(`Разложить ${count} задач этапа «${stage.name}» по свободным окнам на 7 дней?`)) {
       autoPlan.mutate({ stageId: stage.id, startDate: today, days: 7 });
     }
@@ -100,11 +106,17 @@ export default function Projects() {
             return data.timeLogs.filter((log) => log.projectId === project.id && localDayKey(log.start) === key).reduce((sum, log) => sum + log.minutes, 0);
           });
           const chartMax = Math.max(60, ...chart);
+          const linkedMoney = data.transactions.filter(row => row.projectId === project.id).reduce((result, row) => {
+            const total = result[row.currency] ??= { income: 0, expense: 0 };
+            total[row.kind === "income" ? "income" : "expense"] += row.amount;
+            return result;
+          }, {} as Record<string, { income: number; expense: number }>);
+          const stages = data.stages.filter(stage => stage.projectId === project.id).sort((a,b) => a.position-b.position);
           return (
             <article className="card project-card card-interactive" key={project.id} style={{ "--project-color": projectColor[project.type] } as CSSProperties}>
               <div className="project-top">
                 <div className="project-symbol"><FolderKanban size={22} /></div>
-                <div className="project-title"><h3>{project.name}</h3><p>{projectTypeLabel[project.type]} · {openTasks.length} открытых задач</p></div>
+                <div className="project-title"><h3>{project.name} {project.workspaceId && <span className="badge">Общее</span>}</h3><p>{projectTypeLabel[project.type]} · {openTasks.length} открытых задач</p></div>
                 <span className={`badge ${project.status === "active" ? "badge-success" : "badge-warning"}`}>{project.status === "active" ? "В работе" : "Пауза"}</span>
               </div>
               <div className="progress-track" aria-label={`${dailyPercent}% дневной цели`}><div className="progress-fill" style={{ transform: `scaleX(${dailyPercent / 100})` }} /></div>
@@ -117,7 +129,14 @@ export default function Projects() {
                 <span><CalendarRange size={13} style={{ display: "inline", marginRight: 4 }} />{project.deadline ? `${daysLeft} дн. до дедлайна` : "Без дедлайна"}</span>
                 {remainingEstimate > 0 && <strong>{formatDuration(neededPerDay)}/день</strong>}
               </div>
-              {project.type === "money" && <p className="small" style={{ color: "var(--success)" }}><TrendingUp size={14} style={{ display: "inline", marginRight: 5 }} />{formatMoney(project.actualIncome, data.settings?.currency)} из {formatMoney(project.expectedIncome, data.settings?.currency)}</p>}
+              <div className="project-profit"><strong><TrendingUp size={14} />Финансы проекта</strong>{Object.entries(linkedMoney).length ? Object.entries(linkedMoney).map(([code, money]) => <span key={code}>Прибыль {formatMoney(money.income-money.expense, code)} <small>· доход {formatMoney(money.income, code)} / расходы {formatMoney(money.expense, code)}</small></span>) : <span>Пока нет операций · план {formatMoney(project.expectedIncome, data.settings?.currency)}</span>}</div>
+              <section className="project-stage-tree"><div className="section-title"><strong>Этапы и задачи</strong><button className="text-button" type="button" onClick={() => { setStageFor(stageFor === project.id ? null : project.id); setStageName(""); }}>+ этап</button></div>
+                {stageFor === project.id && <form className="action-row stage-add-form" onSubmit={event => { event.preventDefault(); if (!stageName.trim()) return; createStage.mutate({ projectId: project.id, name: stageName.trim() }, { onSuccess: () => { setStageFor(null); setStageName(""); } }); }}><input autoFocus className="input" aria-label="Название нового этапа" placeholder="Например: Подготовка материалов" value={stageName} onChange={event => setStageName(event.target.value)} maxLength={160}/><button className="button button-ghost button-small" disabled={!stageName.trim() || createStage.isPending} type="submit">Добавить</button></form>}
+                {(stages.length ? stages : [{ id: "__unassigned", name: "Без этапа", position: 0 }]).map(stage => {
+                  const stageTasks = projectTasks.filter(task => stage.id === "__unassigned" ? !task.stageId : task.stageId === stage.id);
+                  return <div className="project-stage" key={stage.id}><strong>{stage.name}</strong>{stageTasks.filter(task => !task.parentId).map(task => <div className="project-tree-task" key={task.id}><span className={`task-tree-mark ${task.status === "done" ? "done" : ""}`} /> <span>{task.title}{task.dependsOn && <small className="project-dependency">После: {data.tasks.find(item => item.id === task.dependsOn)?.title ?? "связанной задачи"}</small>}</span>{projectTasks.filter(child => child.parentId === task.id).length > 0 && <div className="project-tree-children">{projectTasks.filter(child => child.parentId === task.id).map(child => <div key={child.id}><span className={`task-tree-mark ${child.status === "done" ? "done" : ""}`} />{child.title}</div>)}</div>}</div>)}{stageTasks.length === 0 && <small className="muted">Здесь появятся задачи</small>}</div>;
+                })}
+              </section>
               <div className="action-row" style={{ marginTop: 16 }}>
                 <button className="button button-dark button-small" type="button" onClick={() => openTimer(project)}><Play size={15} />Фокус</button>
                 <button className="button button-ghost button-small" type="button" onClick={() => planStage(project)} disabled={autoPlan.isPending}><CalendarRange size={15} />Разложить этап</button>
@@ -138,14 +157,15 @@ export default function Projects() {
         </div>
       </section>
 
-      {newProject && <NewProjectModal onClose={() => setNewProject(false)} />}
+      {newProject && <NewProjectModal data={data} onClose={() => setNewProject(false)} />}
       {timerOpen && timerProject && <TimerModal project={timerProject} data={data} onProjectChange={setTimerProject} onClose={() => setTimerOpen(false)} onStart={(input) => startTimer.mutate(input)} onStop={() => stopTimer.mutate()} pending={startTimer.isPending || stopTimer.isPending} />}
     </div>
   );
 }
 
-function NewProjectModal({ onClose }: { onClose: () => void }) {
+function NewProjectModal({ onClose, data }: { onClose: () => void; data: LayoutContext["data"] }) {
   const utils = trpc.useUtils();
+  const [workspaceId, setWorkspaceId] = useState("");
   const [name, setName] = useState("");
   const [type, setType] = useState<"money" | "study" | "personal" | "agency">("personal");
   const [deadline, setDeadline] = useState("");
@@ -160,11 +180,12 @@ function NewProjectModal({ onClose }: { onClose: () => void }) {
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (!name.trim()) return setError("Дайте проекту понятное название");
-    create.mutate({ id: crypto.randomUUID(), name: name.trim(), type, deadline: deadline || undefined, dailyMinutesGoal, weeklyMinutesGoal, expectedIncome: Math.round(expectedIncome * 100) });
+    create.mutate({ id: crypto.randomUUID(), name: name.trim(), workspaceId: workspaceId || null, type, deadline: deadline || undefined, dailyMinutesGoal, weeklyMinutesGoal, expectedIncome: Math.round(expectedIncome * 100) });
   };
   return (
     <Modal title="Новый проект" onClose={onClose}>
       <form className="form-grid" onSubmit={submit}>
+        <SharedAccess id="new-project-access" data={data} value={workspaceId} onChange={setWorkspaceId} />
         <div className="field"><label htmlFor="new-project-name">Название результата</label><input id="new-project-name" className="input" value={name} onChange={(event) => setName(event.target.value)} placeholder="Например, запустить первую версию" /></div>
         <div className="form-row">
           <div className="field"><label htmlFor="new-project-type">Тип</label><AppSelect id="new-project-type" className="select" value={type} onChange={(event) => setType(event.target.value as typeof type)}>{Object.entries(projectTypeLabel).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</AppSelect></div>
@@ -174,7 +195,7 @@ function NewProjectModal({ onClose }: { onClose: () => void }) {
           <div className="field"><label htmlFor="new-project-daily">Цель в день, минут</label><input id="new-project-daily" className="input" type="number" min={0} step={15} value={dailyMinutesGoal} onChange={(event) => setDailyMinutesGoal(Number(event.target.value))} /></div>
           <div className="field"><label htmlFor="new-project-weekly">Цель в неделю, минут</label><input id="new-project-weekly" className="input" type="number" min={0} step={30} value={weeklyMinutesGoal} onChange={(event) => setWeeklyMinutesGoal(Number(event.target.value))} /></div>
         </div>
-        {type === "money" && <div className="field"><label htmlFor="new-project-income">Ожидаемый доход</label><input id="new-project-income" className="input" type="number" min={0} step={1000} value={expectedIncome} onChange={(event) => setExpectedIncome(Number(event.target.value))} /></div>}
+        {(type === "money" || type === "agency") && <div className="field"><label htmlFor="new-project-income">Плановая прибыль, {data.settings?.currency ?? "TJS"}</label><input id="new-project-income" className="input" type="number" min={0} step={1000} value={expectedIncome} onChange={(event) => setExpectedIncome(Number(event.target.value))} /></div>}
         {error && <p className="field-error" role="alert">{error}</p>}
         <button className="button button-primary button-wide" type="submit" disabled={create.isPending}>{create.isPending ? "Создаём…" : "Создать проект и этап"}</button>
       </form>
@@ -194,7 +215,7 @@ function TimerModal({ project, data, onProjectChange, onClose, onStart, onStop, 
   const [taskId, setTaskId] = useState("");
   const [preset, setPreset] = useState(25);
   const [note, setNote] = useState("");
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(0);
   const active = data.activeTimer;
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 1000);

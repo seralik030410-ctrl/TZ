@@ -1,3 +1,5 @@
+import { setOfflineAccount } from "@/lib/offline";
+import { queryClient } from "@/providers/trpc";
 import { AppSelect } from "@/components/FormControls";
 import { useEffect, useState, type FormEvent } from "react";
 import { useOutletContext } from "react-router";
@@ -8,19 +10,22 @@ import { trpc } from "@/providers/trpc";
 import { downloadJson, localDayKey, minutesToTime, timeToMinutes, type LayoutContext } from "@/lib/planner";
 
 export default function Settings() {
-  const { data, refresh } = useOutletContext<LayoutContext>();
+  const { data } = useOutletContext<LayoutContext>();
   const utils = trpc.useUtils();
+  const [inviteLink, setInviteLink] = useState("");
+  const [inviteExpiry, setInviteExpiry] = useState("");
   const [name, setName] = useState(data.settings?.name ?? "Алекс");
   const [currency, setCurrency] = useState(({ "₽": "RUB", "$": "USD" }[data.settings?.currency ?? ""] ?? data.settings?.currency ?? "TJS"));
   const [dailyLimit, setDailyLimit] = useState((data.settings?.dailyLimit ?? 0) / 100);
   const [monthlyLimit, setMonthlyLimit] = useState((data.settings?.monthlyLimit ?? 0) / 100);
   const [cushion, setCushion] = useState((data.settings?.cushion ?? 0) / 100);
+  const [monthlySavings, setMonthlySavings] = useState((data.settings?.monthlySavings ?? 0) / 100);
   const [workStart, setWorkStart] = useState(minutesToTime(data.settings?.workStartMin ?? 480));
   const [workEnd, setWorkEnd] = useState(minutesToTime(data.settings?.workEndMin ?? 1320));
   const [online, setOnline] = useState(navigator.onLine);
   const [timezone, setTimezone] = useState(data.settings?.timezone ?? "Asia/Dushanbe");
   const [agencyGoal, setAgencyGoal] = useState((data.settings?.agencyGoal ?? 10000000) / 100);
-  const [goalCurrency, setGoalCurrency] = useState(data.settings?.agencyGoalCurrency ?? "TJS");
+  const [goalCurrency, setGoalCurrency] = useState(() => currencies.includes(data.settings?.agencyGoalCurrency ?? "TJS") ? data.settings?.agencyGoalCurrency ?? "TJS" : "TJS");
 
   useEffect(() => {
     const update = () => setOnline(navigator.onLine);
@@ -33,14 +38,18 @@ export default function Settings() {
     onSuccess: async () => { await utils.planner.bootstrap.invalidate(); toast.success("Настройки сохранены"); },
     onError: (error) => toast.error(error.message),
   });
-  const logout = trpc.planner.auth.logout.useMutation({ onSuccess: () => { localStorage.removeItem("planner-last-data"); window.location.reload(); } });
+  const invite = trpc.planner.auth.invite.useMutation({
+    onSuccess: result => { const url = new URL(window.location.origin); url.searchParams.set("invite", result.token); setInviteLink(url.toString()); setInviteExpiry(new Date(result.expiresAt).toLocaleString("ru-RU")); },
+    onError: error => toast.error(error.message),
+  });
+  const logout = trpc.planner.auth.logout.useMutation({ onSuccess: async () => { setOfflineAccount(null); await queryClient.cancelQueries(); queryClient.clear(); window.location.replace("/"); }, onError: error => toast.error(error.message) });
   const exportQuery = trpc.planner.exportData.useQuery(undefined, { enabled: false });
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (!name.trim()) return toast.error("Имя не может быть пустым");
     if (timeToMinutes(workEnd) <= timeToMinutes(workStart)) return toast.error("Конец рабочего дня должен быть позже начала");
-    update.mutate({ name: name.trim(), currency, dailyLimit: Math.round(dailyLimit * 100), monthlyLimit: Math.round(monthlyLimit * 100), cushion: Math.round(cushion * 100), workStartMin: timeToMinutes(workStart), workEndMin: timeToMinutes(workEnd), timezone, agencyGoal: Math.round(agencyGoal * 100), agencyGoalCurrency: goalCurrency as "TJS" | "USD" | "RUB" | "EUR" | "KZT" });
+    update.mutate({ name: name.trim(), currency, dailyLimit: Math.round(dailyLimit * 100), monthlyLimit: Math.round(monthlyLimit * 100), cushion: Math.round(cushion * 100), monthlySavings: Math.round(monthlySavings * 100), workStartMin: timeToMinutes(workStart), workEndMin: timeToMinutes(workEnd), timezone, agencyGoal: Math.round(agencyGoal * 100), agencyGoalCurrency: (currencies.includes(goalCurrency) ? goalCurrency : "TJS") as "TJS" | "USD" | "RUB" });
   };
 
   const changeTheme = (theme: "light" | "dark") => {
@@ -80,6 +89,7 @@ export default function Settings() {
               <div className="field"><label htmlFor="settings-monthly">Месячный лимит</label><input id="settings-monthly" className="input" type="number" min={0} step={1000} value={monthlyLimit} onChange={(event) => setMonthlyLimit(Number(event.target.value))} /></div>
             </div>
             <div className="field"><label htmlFor="settings-cushion">Неприкосновенная подушка</label><input id="settings-cushion" className="input" type="number" min={0} step={500} value={cushion} onChange={(event) => setCushion(Number(event.target.value))} /><span className="micro muted">Вычитается перед расчётом «безопасно потратить».</span></div>
+            <div className="field"><label htmlFor="settings-savings">Откладывать каждый месяц</label><input id="settings-savings" className="input" type="number" min={0} step={100} value={monthlySavings} onChange={event => setMonthlySavings(Number(event.target.value))} /><span className="micro muted">Учитывается вместе с платежами и подушкой до расчёта дневного лимита.</span></div>
             <div className="field"><label htmlFor="settings-timezone">Часовой пояс</label><input id="settings-timezone" className="input" value={timezone} onChange={e => setTimezone(e.target.value)} /><span className="micro muted">Например Asia/Dushanbe или Europe/Moscow</span></div>
             <div className="form-row"><div className="field"><label htmlFor="settings-goal">Цель прибыли агентства за месяц</label><input id="settings-goal" className="input" type="number" min="0" step="0.01" value={agencyGoal} onChange={e => setAgencyGoal(Number(e.target.value))} /></div><div className="field"><label htmlFor="settings-goal-currency">Валюта цели</label><AppSelect id="settings-goal-currency" className="select" value={goalCurrency} onChange={e => setGoalCurrency(e.target.value)}>{currencies.map(c => <option key={c}>{c}</option>)}</AppSelect></div></div>
             <button className="button button-primary" type="submit" disabled={update.isPending}><Save size={17} />{update.isPending ? "Сохраняем…" : "Сохранить настройки"}</button>
@@ -104,8 +114,10 @@ export default function Settings() {
         <section className="card span-5">
           <div className="section-title" style={{ marginTop: 0 }}><h2>Сеанс и доступ</h2><ShieldCheck size={20} color="var(--success)" /></div>
           <p className="small"><span className="dot" style={{ display: "inline-block", marginRight: 7, background: online ? "var(--success)" : "var(--danger)" }} />{online ? "Соединение активно" : "Офлайн-режим"}</p>
-          <p className="small muted">Вход защищён паролем, сессия хранится в httpOnly cookie. Для смены пароля задайте PLANNER_PASSWORD на сервере.</p>
-          <button className="button button-danger" type="button" onClick={() => { refresh(); logout.mutate(); }} disabled={logout.isPending}><LogOut size={16} />Выйти из ежедневника</button>
+          <p className="small muted">Профиль: {data.user.name}. Личные задачи, финансы и дневник доступны только вам. В общем пространстве видны общие проекты и задачи.</p>
+          <button className="button button-ghost" type="button" disabled={invite.isPending} onClick={() => invite.mutate()}>{invite.isPending ? "Создаём…" : "Пригласить в общее пространство"}</button>
+          {inviteLink && <div className="field" style={{ marginTop: 16 }}><label htmlFor="invite-link">Одноразовая ссылка приглашения</label><input id="invite-link" className="input" readOnly value={inviteLink} onFocus={event => event.target.select()} /><span className="micro muted">Действует до {inviteExpiry}. Отправьте ссылку человеку, с которым хотите планировать вместе.</span><button className="button button-ghost" type="button" onClick={() => { void navigator.clipboard.writeText(inviteLink).then(() => toast.success("Ссылка скопирована")).catch(() => toast.error("Выделите и скопируйте ссылку вручную")); }}>Скопировать ссылку</button></div>}
+          <button className="button button-danger" type="button" onClick={() => logout.mutate()} disabled={logout.isPending}><LogOut size={16} />Выйти из ежедневника</button>
         </section>
       </div>
     </div>

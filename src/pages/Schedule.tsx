@@ -1,7 +1,7 @@
 import { AppSelect, DateField } from "@/components/FormControls";
 import { RecordForm, options } from "@/components/ModuleKit";
 import { exceptionSchema, scheduleForDay } from "@contracts/schedule";
-import { addCalendarDays } from "@contracts/shared";
+import { addCalendarDays, minutesInZone } from "@contracts/shared";
 import { useState, type FormEvent } from "react";
 import { useOutletContext } from "react-router";
 import { CalendarDays, Clock3, Coffee, GraduationCap, MapPin, Plus, Trash2, BriefcaseBusiness } from "lucide-react";
@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { getFreeWindows } from "@contracts/planning";
 import { Modal } from "@/components/Modal";
 import { trpc } from "@/providers/trpc";
-import { formatDuration, localDayKey, minutesToTime, timeToMinutes, type LayoutContext } from "@/lib/planner";
+import { getUserTimezone, formatDuration, localDayKey, minutesToTime, timeToMinutes, type LayoutContext } from "@/lib/planner";
 
 const weekdays = [
   { value: 1, short: "Пн", long: "Понедельник" },
@@ -27,6 +27,7 @@ export default function Schedule() {
   const currentWeekday = new Date(`${localDayKey()}T12:00:00Z`).getUTCDay() || 7;
   const [selected, setSelected] = useState(currentWeekday);
   const [viewDay, setViewDay] = useState(localDayKey());
+  const sharedBusy = trpc.sharing.busy.useQuery({ day: viewDay }, { enabled: data.workspaces.length > 0 });
   const [addOpen, setAddOpen] = useState(false);
   const [editing, setEditing] = useState<LayoutContext["data"]["schedule"][number] | null>(null);
   const [exceptionFor, setExceptionFor] = useState<string | null>(null);
@@ -86,6 +87,7 @@ export default function Schedule() {
         </section>
       </div>
 
+      {data.workspaces.length > 0 && <section className="card" style={{ marginTop: 18 }}><div className="section-title" style={{ marginTop: 0 }}><h2>Занятость участников</h2><span className="badge">Общее</span></div><p className="small muted">{viewDay} · Видно только время занятости. Названия и детали личных событий скрыты.</p>{sharedBusy.isLoading ? <p className="small muted">Загружаем занятость…</p> : sharedBusy.error ? <p className="small muted" role="status">Не удалось проверить занятость. <button className="text-button" onClick={() => void sharedBusy.refetch()}>Повторить</button></p> : sharedBusy.data?.length ? <div className="plain-list">{sharedBusy.data.map(block => <div className="list-row" key={block.id}><Clock3 size={18} color="var(--text-soft)" /><div className="list-row-main"><strong>Занято</strong><span>{minutesToTime(minutesInZone(block.start, getUserTimezone()))}–{minutesToTime(minutesInZone(block.end, getUserTimezone()))}</span></div></div>)}</div> : <p className="small muted">На выбранную дату занятых интервалов нет.</p>}</section>}
       <section className="card" style={{ marginTop: 18 }}><h2>Исключения на дату</h2>{(data.scheduleExceptions ?? []).length ? data.scheduleExceptions.map(exception => <div className="list-row" key={exception.id}><div className="list-row-main"><strong>{data.schedule.find(s => s.id === exception.itemId)?.title ?? "Событие"}</strong><span>{exception.date} · {exception.action === "cancel" ? "Отменено" : `${minutesToTime(exception.startMin ?? 0)}–${minutesToTime(exception.endMin ?? 0)}`}</span></div><button className="icon-button" aria-label="Удалить исключение" onClick={() => removeException.mutate({ id: exception.id })}><Trash2 size={16} /></button></div>) : <p className="small muted">Отмена или перенос на отдельную дату не меняют недельный шаблон.</p>}</section>
       {exceptionFor && <RecordForm title="Исключение из расписания" initial={{ itemId: exceptionFor }} fields={[{ key: "date", label: "Дата", type: "date", value: localDayKey(), required: true }, { key: "action", label: "Что изменить", options: options({ cancel: "Отменить на эту дату", move: "Перенести время на эту дату" }), value: "cancel", required: true }, { key: "startMin", label: "Новое начало", type: "time", hint: "Для переноса времени" }, { key: "endMin", label: "Новое окончание", type: "time" }]} schema={exceptionSchema} onClose={() => setExceptionFor(null)} onSave={async value => { await saveException.mutateAsync(exceptionSchema.parse(value)); await utils.planner.bootstrap.invalidate(); }} />}
       {editing && <ScheduleModal initial={editing} onClose={() => setEditing(null)} defaultWeekday={selected} />}

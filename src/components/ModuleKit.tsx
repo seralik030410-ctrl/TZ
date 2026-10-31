@@ -5,7 +5,7 @@ import { z } from "zod";
 import superjson from "superjson";
 import { toast } from "sonner";
 import { Modal } from "./Modal";
-import { queueMutation, pendingMutations, type QueuedMutation } from "@/lib/offline";
+import { queueMutation, pendingMutations, accountStorageKey, getOfflineAccount, type QueuedMutation } from "@/lib/offline";
 import { downloadJson, minutesToTime, timeToMinutes, getUserTimezone } from "@/lib/planner";
 import { minorUnits, dayInZone, minutesInZone, zonedDateAt } from "@contracts/shared";
 
@@ -49,20 +49,22 @@ export function RecordForm({ title, fields, initial, schema, onSave, onClose, on
 }
 
 export async function moduleMutation(path: QueuedMutation["path"], input: unknown) {
+  const accountId = getOfflineAccount();
+  if (!accountId) throw new Error("Войдите в профиль");
   if (navigator.onLine) {
     try {
-      const response = await fetch(`/api/trpc/${path}`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(superjson.serialize(input)) });
+      const response = await fetch(`/api/trpc/${path}`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json", "X-Planner-Account": accountId }, body: JSON.stringify(superjson.serialize(input)) });
       const body = await response.json();
       if (!response.ok || body.error) throw new Error(body.error?.json?.message ?? body.error?.message ?? "Сервер отклонил запись");
       toast.success("Запись сохранена"); return;
     } catch (e) { if (!(e instanceof TypeError)) throw e; }
   }
-  await queueMutation({ id: crypto.randomUUID(), path, input });
+  await queueMutation({ id: crypto.randomUUID(), path, input }, accountId);
   window.dispatchEvent(new Event("module-queue-change"));
   toast.success("Сохранено на устройстве. Отправим при подключении");
 }
 export function useModuleCache<T>(name: string, serverData: T | undefined) {
-  const [cached, setCached] = useState<T | undefined>(() => { try { return superjson.parse(localStorage.getItem(`ritm-${name}`) ?? "null") ?? undefined; } catch { return undefined; } });
+  const [cached, setCached] = useState<T | undefined>(() => { try { return superjson.parse(localStorage.getItem(accountStorageKey(`ritm-${name}`)) ?? "null") ?? undefined; } catch { return undefined; } });
   useEffect(() => {
     if (!serverData) return;
     let disposed = false;
@@ -77,13 +79,13 @@ export function useModuleCache<T>(name: string, serverData: T | undefined) {
         if (input.record) projected[key] = [...rows.filter(r => r.id !== input.record!.data.id), { ...input.record.data, updatedAt: new Date(mutation.createdAt), isDeleted: false }];
         else if (mutation.path.endsWith(".remove")) projected[key] = rows.filter(r => r.id !== input.id);
       }
-      if (!disposed) { setCached(projected as T); localStorage.setItem(`ritm-${name}`, superjson.stringify(projected)); }
+      if (!disposed) { setCached(projected as T); localStorage.setItem(accountStorageKey(`ritm-${name}`), superjson.stringify(projected)); }
     };
     void update().catch(() => { if (!disposed) setCached(serverData); });
     window.addEventListener("module-queue-change", update);
     return () => { disposed = true; window.removeEventListener("module-queue-change", update); };
   }, [name, serverData]);
-  const set = (next: T) => { setCached(next); localStorage.setItem(`ritm-${name}`, superjson.stringify(next)); };
+  const set = (next: T) => { setCached(next); localStorage.setItem(accountStorageKey(`ritm-${name}`), superjson.stringify(next)); };
   return [cached, set] as const;
 }
 export function ModuleHeader({ title, eyebrow, subtitle, onAdd, addLabel, data }: { title: string; eyebrow: string; subtitle: string; onAdd?: () => void; addLabel?: string; data: unknown }) {

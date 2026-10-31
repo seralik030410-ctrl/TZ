@@ -6,6 +6,7 @@ import { debtsRouter } from "./debtsRouter";
 import { dailyRouter } from "./dailyRouter";
 import { calendarRouter } from "./calendarRouter";
 import { routinesRouter } from "./routinesRouter";
+import { sharingRouter } from "./sharingRouter";
 
 export const appRouter = createRouter({
   ping: publicQuery.query(() => ({ ok: true, ts: Date.now() })),
@@ -16,6 +17,7 @@ export const appRouter = createRouter({
   daily: dailyRouter,
   calendar: calendarRouter,
   routines: routinesRouter,
+  sharing: sharingRouter,
 });
 
 export type AppRouter = typeof appRouter;

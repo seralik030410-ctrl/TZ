@@ -1,3 +1,4 @@
+import { accountStorageKey } from "@/lib/offline";
 import { DateField } from "@/components/FormControls";
 import { useState } from "react";
 import { CalendarRange, Undo2 } from "lucide-react";
@@ -10,10 +11,10 @@ import { Modal } from "./Modal";
 
 export function DailyPlanner({ data, mode = "append" }: { data: PlannerData; mode?: "append" | "reflow" }) {
   const [open, setOpen] = useState(false);
-  const [undoId, setUndoId] = useState(() => localStorage.getItem("ritm-last-daily-plan"));
+  const [undoId, setUndoId] = useState(() => localStorage.getItem(accountStorageKey("ritm-last-daily-plan")));
   const utils = trpc.useUtils();
-  const undo = trpc.daily.undo.useMutation({ onSuccess: async () => { localStorage.removeItem("ritm-last-daily-plan"); setUndoId(null); await utils.planner.bootstrap.invalidate(); toast.success("Раскладка отменена"); }, onError: e => toast.error(e.message) });
-  return <><button className="button button-ghost" onClick={() => setOpen(true)}><CalendarRange size={18} />{mode === "reflow" ? "Пересобрать оставшийся день" : "Составить план дня"}</button>{undoId && <button className="button button-ghost" disabled={undo.isPending} onClick={() => undo.mutate({ id: undoId })}><Undo2 size={16} />Отменить раскладку</button>}{open && <PlanDialog mode={mode} data={data} onClose={() => setOpen(false)} onApplied={id => { setUndoId(id); localStorage.setItem("ritm-last-daily-plan", id); }} />}</>;
+  const undo = trpc.daily.undo.useMutation({ onSuccess: async () => { localStorage.removeItem(accountStorageKey("ritm-last-daily-plan")); setUndoId(null); await utils.planner.bootstrap.invalidate(); toast.success("Раскладка отменена"); }, onError: e => toast.error(e.message) });
+  return <><button className="button button-ghost" onClick={() => setOpen(true)}><CalendarRange size={18} />{mode === "reflow" ? "Пересобрать оставшийся день" : "Составить план дня"}</button>{undoId && <button className="button button-ghost" disabled={undo.isPending} onClick={() => undo.mutate({ id: undoId })}><Undo2 size={16} />Отменить раскладку</button>}{open && <PlanDialog mode={mode} data={data} onClose={() => setOpen(false)} onApplied={id => { setUndoId(id); localStorage.setItem(accountStorageKey("ritm-last-daily-plan"), id); }} />}</>;
 }
 function PlanDialog({ data, onClose, onApplied, mode }: { mode: "append" | "reflow"; data: PlannerData; onClose: () => void; onApplied: (id: string) => void }) {
   const zone = data.settings?.timezone ?? "Asia/Dushanbe";

@@ -71,6 +71,27 @@
       "when": 1793500000001,
       "tag": "0009_currency_and_weekly_time",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1793500000002,
+      "tag": "0010_personal_profiles",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "5",
+      "when": 1793500000003,
+      "tag": "0011_recurring_bills",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "5",
+      "when": 1793500000004,
+      "tag": "0012_tasks_in_schedule",
+      "breakpoints": true
     }
   ]
 }

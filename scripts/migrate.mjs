@@ -10,6 +10,8 @@ const journal = JSON.parse(await readFile(new URL("meta/_journal.json", director
 const exists = async (query, params) => (await connection.query(query, params))[0].length > 0;
 const hasColumn = (table, column) => exists("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=? AND COLUMN_NAME=?", [table, column]);
 async function ddl(statement) {
+  const dropIndex = statement.match(/^ALTER TABLE\s+`([^`]+)`\s+DROP INDEX\s+`([^`]+)`/i);
+  if (dropIndex && !await exists("SELECT 1 FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=? AND INDEX_NAME=?", [dropIndex[1], dropIndex[2]])) return;
   const create = statement.match(/^CREATE TABLE\s+`([^`]+)`/i);
   if (create && await exists("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=?", [create[1]])) return;
   const column = statement.match(/^ALTER TABLE\s+`([^`]+)`\s+ADD\s+`([^`]+)`/i);

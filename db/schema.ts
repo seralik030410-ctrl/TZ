@@ -5,9 +5,13 @@ import {
   text,
   timestamp,
   varchar,
+  primaryKey,
+
 } from "drizzle-orm/mysql-core";
 
+import { OWNER_ID } from "./accounts";
 const syncFields = () => ({
+  ownerId: varchar("owner_id", { length: 36 }).notNull().default(OWNER_ID),
   isDeleted: boolean("is_deleted").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
@@ -24,6 +28,7 @@ export const settings = mysqlTable("settings", {
   theme: varchar("theme", { length: 16 }).notNull().default("light"),
   autoReflow: boolean("auto_reflow").notNull().default(false),
   cushion: int("cushion").notNull().default(0),
+  monthlySavings: int("monthly_savings").notNull().default(0),
   timezone: varchar("timezone", { length: 80 }).notNull().default("Asia/Dushanbe"),
   agencyEnabled: boolean("agency_enabled").notNull().default(true),
   goldEnabled: boolean("gold_enabled").notNull().default(true),
@@ -33,7 +38,19 @@ export const settings = mysqlTable("settings", {
   ...syncFields(),
 });
 
+export const recurringBills = mysqlTable("recurring_bills", {
+  id: varchar("id", { length: 36 }).primaryKey(),
+  name: varchar("name", { length: 120 }).notNull(),
+  amount: int("amount").notNull(),
+  currency: varchar("currency", { length: 8 }).notNull().default("TJS"),
+  dueDay: int("due_day").notNull(),
+  category: varchar("category", { length: 80 }).notNull().default("Обязательные платежи"),
+  paidThrough: varchar("paid_through", { length: 7 }),
+  ...syncFields(),
+});
+
 export const projects = mysqlTable("projects", {
+  workspaceId: varchar("workspace_id", { length: 36 }),
   id: varchar("id", { length: 36 }).primaryKey(),
   name: varchar("name", { length: 160 }).notNull(),
   type: varchar("type", { length: 32 }).notNull().default("personal"),
@@ -49,6 +66,7 @@ export const projects = mysqlTable("projects", {
 });
 
 export const stages = mysqlTable("stages", {
+  workspaceId: varchar("workspace_id", { length: 36 }),
   id: varchar("id", { length: 36 }).primaryKey(),
   projectId: varchar("project_id", { length: 36 }).notNull(),
   name: varchar("name", { length: 160 }).notNull(),
@@ -59,6 +77,8 @@ export const stages = mysqlTable("stages", {
 });
 
 export const tasks = mysqlTable("tasks", {
+  workspaceId: varchar("workspace_id", { length: 36 }),
+  scheduleItemId: varchar("schedule_item_id", { length: 36 }),
   id: varchar("id", { length: 36 }).primaryKey(),
   projectId: varchar("project_id", { length: 36 }),
   stageId: varchar("stage_id", { length: 36 }),
@@ -128,7 +148,7 @@ export const transactions = mysqlTable("transactions", {
 
 export const journalEntries = mysqlTable("journal_entries", {
   id: varchar("id", { length: 36 }).primaryKey(),
-  date: varchar("date", { length: 10 }).notNull().unique(),
+  date: varchar("date", { length: 10 }).notNull(),
   mood: int("mood").notNull().default(3),
   energy: int("energy").notNull().default(3),
   done: text("done"),
@@ -141,6 +161,7 @@ export const journalEntries = mysqlTable("journal_entries", {
 });
 
 export const scheduledBlocks = mysqlTable("scheduled_blocks", {
+  workspaceId: varchar("workspace_id", { length: 36 }),
   id: varchar("id", { length: 36 }).primaryKey(),
   taskId: varchar("task_id", { length: 36 }).notNull(),
   start: timestamp("start").notNull(),
@@ -170,13 +191,15 @@ export const taskTemplates = mysqlTable("task_templates", {
   paused: boolean("paused").notNull().default(false),
   ...syncFields(),
 });
-export const dayClosures = mysqlTable("day_closures", {
-  day: varchar("day", { length: 10 }).primaryKey(),
+export const dayClosures = mysqlTable("profile_day_closures", {
+  ownerId: varchar("owner_id", { length: 36 }).notNull().default(OWNER_ID),
+  day: varchar("day", { length: 10 }).notNull(),
   note: text("note").notNull(),
   movedIds: text("moved_ids").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, t => [primaryKey({ columns: [t.ownerId, t.day] })]);
 
+export * from "./accounts";
 export * from "./agency";
 export * from "./gold";
 export * from "./debts";

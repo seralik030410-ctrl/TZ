@@ -10,13 +10,13 @@ import { handleClientLog } from "./lib/clientlog";
 import { REQUEST_ID_HEADER, runWithRequestId } from "./lib/requestcontext";
 import { getDb } from "./queries/connection";
 import { sql } from "drizzle-orm";
-import { settings, taskTemplates, scheduleItems } from "../db/schema";
+import { settings, taskTemplates, scheduleItems, recurringBills } from "../db/schema";
 
 const app = new Hono<{ Bindings: HttpBindings }>();
 
 // Railway gates deployments on this readiness endpoint.
 app.get("/health", async (c) => { try {
-  await Promise.all([getDb().execute(sql`SELECT 1`), getDb().select().from(settings).limit(1), getDb().select().from(taskTemplates).limit(1), getDb().select().from(scheduleItems).limit(1)]);
+  await Promise.all([getDb().execute(sql`SELECT 1`), getDb().select().from(settings).limit(1), getDb().select().from(taskTemplates).limit(1), getDb().select().from(scheduleItems).limit(1), getDb().select().from(recurringBills).limit(1)]);
   return c.json({ ok: true });
 } catch { return c.json({ ok: false }, 503); } });
 

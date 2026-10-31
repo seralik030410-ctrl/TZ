@@ -1,5 +1,6 @@
 import { mysqlTable, varchar, text, boolean, int, timestamp } from "drizzle-orm/mysql-core";
-export const syncColumns = () => ({ id: varchar("id", { length: 36 }).primaryKey(), isDeleted: boolean("is_deleted").notNull().default(false), updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow() });
+import { OWNER_ID } from "./accounts";
+export const syncColumns = () => ({ ownerId: varchar("owner_id", { length: 36 }).notNull().default(OWNER_ID), id: varchar("id", { length: 36 }).primaryKey(), isDeleted: boolean("is_deleted").notNull().default(false), updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow() });
 const str = (name: string, length = 180) => varchar(name, { length }).notNull();
 const date = (name: string) => varchar(name, { length: 10 });
 export const clients = mysqlTable("clients", { ...syncColumns(), name: str("name"), phone: str("phone"), messenger: str("messenger"), source: str("source"), notes: text("notes").notNull() });

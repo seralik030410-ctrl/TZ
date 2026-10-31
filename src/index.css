@@ -685,3 +685,20 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
 }
+
+.project-profit { display: grid; gap: 6px; margin-top: 14px; padding: 12px 14px; border-radius: 14px; background: var(--surface-raised); color: var(--text-soft); font-size: 12px; }
+.project-profit strong { display: flex; align-items: center; gap: 6px; color: var(--text); font-size: 13px; }
+.project-profit span { overflow-wrap: anywhere; }
+.project-profit small { color: var(--text-soft); }
+.project-stage-tree { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 10px; }
+.project-stage-tree .section-title { margin: 0 0 8px; }
+.project-stage { display: grid; gap: 6px; margin: 8px 0; padding: 10px 12px; border-radius: 12px; background: var(--surface-raised); font-size: 12px; }
+.project-tree-task, .project-tree-children>div { position: relative; display: flex; align-items: flex-start; gap: 8px; min-width: 0; overflow-wrap: anywhere; color: var(--text-soft); }
+.project-tree-children { display: grid; gap: 5px; margin: 5px 0 0 12px; padding-left: 12px; border-left: 1px solid var(--line); }
+.task-tree-mark { flex: 0 0 7px; width: 7px; height: 7px; margin-top: 5px; border-radius: 50%; background: var(--accent); }
+.task-tree-mark.done { background: var(--success); }
+.timeline-subtask { display: block; margin-top: 3px; padding-left: 8px; color: var(--cat-study); font-size: 11px; font-weight: 600; }
+.timeline-subtask.nested { padding-left: 22px; color: var(--text-soft); font-size: 10px; font-weight: 500; }
+.stage-add-form { align-items: center; margin: 8px 0; }
+.stage-add-form .input { min-width: 0; flex: 1; }
+.project-dependency { display: block; margin-top: 2px; color: var(--text-soft); font-size: 10px; }

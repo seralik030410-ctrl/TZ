@@ -1,3 +1,7 @@
+import { and, eq } from "drizzle-orm";
+import { currentAccount, currentSettingsId, currentUserId } from "../lib/accountContext";
+import { owned } from "../lib/access";
+import { OWNER_ID } from "../../db/accounts";
 import { getDb } from "./connection";
 import {
   journalEntries,
@@ -18,14 +22,14 @@ const dayKey = (offset = 0) => {
 
 export async function ensureSeed() {
   const db = getDb();
-  const [existingSettings] = await db.select().from(settings).limit(1);
+  const [existingSettings] = await db.select().from(settings).where(and(eq(settings.id, currentSettingsId()), eq(settings.ownerId, currentUserId()))).limit(1);
   if (!existingSettings) {
-    await db.insert(settings).values({ id: "default", theme: "dark" });
+    await db.insert(settings).values(owned({ id: currentSettingsId(), theme: "dark", name: currentAccount().name }));
   }
   // A new production account starts empty; sample data is for development.
-  if (process.env.NODE_ENV === "production") return;
+  if (process.env.NODE_ENV !== "development" || currentUserId() !== OWNER_ID) return;
 
-  const [existingProject] = await db.select().from(projects).limit(1);
+  const [existingProject] = await db.select().from(projects).where(eq(projects.ownerId, currentUserId())).limit(1);
   if (existingProject) return;
 
   await db.insert(projects).values([
@@ -61,12 +65,12 @@ export async function ensureSeed() {
       dailyMinutesGoal: 45,
       weeklyMinutesGoal: 240,
     },
-  ]);
+  ].map(owned));
 
   await db.insert(stages).values([
     { id: "stage-clients", projectId: "project-money", name: "Первый пакет клиентов", position: 1, deadline: dayKey(12) },
     { id: "stage-game", projectId: "project-game", name: "Играбельный прототип", position: 1, deadline: dayKey(24) },
-  ]);
+  ].map(owned));
 
   await db.insert(tasks).values([
     {
@@ -138,14 +142,14 @@ export async function ensureSeed() {
       status: "done",
       position: 6,
     },
-  ]);
+  ].map(owned));
 
   await db.insert(scheduleItems).values([
     { id: "schedule-class-1", title: "Математический анализ", kind: "class", startMin: 540, endMin: 630, weekdays: "1,3,5", location: "Ауд. 214" },
     { id: "schedule-class-2", title: "Проектный практикум", kind: "class", startMin: 650, endMin: 740, weekdays: "1,3", location: "Ауд. 308" },
     { id: "schedule-lunch", title: "Обед", kind: "lunch", startMin: 760, endMin: 800, weekdays: "1,2,3,4,5,6,7", location: "Кафе рядом" },
     { id: "schedule-work", title: "Постоянная работа", kind: "work", startMin: 1020, endMin: 1200, weekdays: "2,4", location: "Офис" },
-  ]);
+  ].map(owned));
 
   const now = new Date();
   const twoHoursAgo = new Date(now.getTime() - 115 * 60_000);
@@ -153,16 +157,16 @@ export async function ensureSeed() {
   await db.insert(timeLogs).values([
     { id: "log-seed-1", projectId: "project-money", taskId: "task-offer", start: twoHoursAgo, end: fortyFiveAgo, minutes: 70, note: "Структура оффера" },
     { id: "log-seed-2", projectId: "project-game", taskId: "task-scene", start: new Date(now.getTime() - 26 * 3_600_000), end: new Date(now.getTime() - 25 * 3_600_000), minutes: 60, note: "Каркас сцены" },
-  ]);
+  ].map(owned));
 
   await db.insert(transactions).values([
     { id: "tx-seed-1", kind: "expense", amount: 42000, category: "Обед", note: "Обед после пар", happenedAt: now },
     { id: "tx-seed-2", kind: "expense", amount: 18000, category: "Транспорт", note: "Метро", happenedAt: new Date(now.getTime() - 3_600_000) },
     { id: "tx-seed-3", kind: "income", amount: 1800000, category: "Проекты", projectId: "project-money", note: "Аванс за лендинг", happenedAt: new Date(now.getTime() - 24 * 3_600_000) },
     { id: "tx-seed-4", kind: "expense", amount: 120000, category: "Учёба", note: "Материалы", happenedAt: new Date(now.getTime() - 30 * 3_600_000) },
-  ]);
+  ].map(owned));
 
-  await db.insert(journalEntries).values({
+  await db.insert(journalEntries).values(owned({
     id: "journal-yesterday",
     date: dayKey(-1),
     mood: 4,
@@ -171,5 +175,5 @@ export async function ensureSeed() {
     insight: "Два часа спокойной работы дают больше, чем день в многозадачности.",
     gratitude: "За спокойный вечер.",
     tags: "фокус",
-  });
+  }));
 }

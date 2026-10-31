@@ -1,14 +1,19 @@
+import { lockPlanning, assertSharedSlot } from "./sharing";
+import { users, workspaces } from "../db/accounts";
 import { scheduleForDay } from "../contracts/schedule";
-import { createHmac, timingSafeEqual } from "node:crypto";
 import { TRPCError } from "@trpc/server";
-import { and, desc, eq, isNull, ne, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import { z } from "zod";
-import { createRouter, publicQuery } from "./middleware";
+import { createRouter } from "./middleware";
 import { getDb } from "./queries/connection";
 import { ensureSeed } from "./queries/planner";
 import { materializeRoutines } from "./queries/routines";
-import { env } from "./lib/env";
-import { currencyCode, money, timezoneSchema, dayInZone, zonedDateAt, minutesInZone } from "../contracts/shared";
+import { protectedQuery } from "./accountProcedure";
+export { protectedQuery } from "./accountProcedure";
+import { authRouter } from "./accountsRouter";
+import { visible, privateScope, owned, assertWorkspace } from "./lib/access";
+import { currentAccount, currentSettingsId, currentUserId } from "./lib/accountContext";
+import { currencyCode, money, timezoneSchema, dayInZone, dayDistance, zonedDateAt, minutesInZone } from "../contracts/shared";
 import {
   journalEntries,
   projects,
@@ -21,6 +26,7 @@ import {
   tasks,
   timeLogs,
   transactions,
+  recurringBills,
 } from "@db/schema";
 import {
   allocateTasks,
@@ -31,86 +37,63 @@ import {
   type MinuteEvent,
 } from "@contracts/planning";
 
-const COOKIE_NAME = "planner_session";
-const SESSION_AGE_SECONDS = 60 * 60 * 24 * 30;
-const loginAttempts = new Map<string, { count: number; resetAt: number }>();
-
-function signature(timestamp: string) {
-  return createHmac("sha256", env.appSecret || "planner-development-secret")
-    .update(timestamp)
-    .digest("hex");
-}
-
-function hasSession(req: Request) {
-  const cookie = req.headers.get("cookie") ?? "";
-  const token = cookie
-    .split(";")
-    .map((part) => part.trim())
-    .find((part) => part.startsWith(`${COOKIE_NAME}=`))
-    ?.split("=")[1];
-  if (!token) return false;
-  const [timestamp, provided] = token.split(".");
-  if (!timestamp || !provided) return false;
-  if (!/^\d+$/.test(timestamp) || !/^[0-9a-f]{64}$/.test(provided)) return false;
-  const age = Date.now() / 1000 - Number(timestamp);
-  if (!Number.isFinite(age) || age < 0 || age > SESSION_AGE_SECONDS) return false;
-  const expected = signature(timestamp);
-  if (expected.length !== provided.length) return false;
-  return timingSafeEqual(Buffer.from(expected), Buffer.from(provided));
-}
-
-export const protectedQuery = publicQuery.use(({ ctx, next }) => {
-  if (!hasSession(ctx.req)) throw new TRPCError({ code: "UNAUTHORIZED" });
-  return next();
-});
-
 const idInput = z.object({ id: z.string().min(1).max(36) });
+const agencyCurrencyAliases: Record<string, string> = { "сомони": "TJS", "сом": "TJS", "$": "USD", "доллары": "USD", "₽": "RUB", "рубли": "RUB" };
 const active = <T extends { isDeleted: boolean }>(rows: T[]) => rows.filter((row) => !row.isDeleted);
 const dateAt = (day: string, minutes: number, timezone = "Asia/Dushanbe") => zonedDateAt(day, minutes, timezone);
 const dayKey = (date = new Date(), timezone = "Asia/Dushanbe") => dayInZone(date, timezone);
 async function scheduleForDate(day: string): Promise<MinuteEvent[]> {
   const db = getDb();
-  const items = active(await db.select().from(scheduleItems));
-  const exceptions = active(await db.select().from(scheduleExceptions));
+  const items = active(await db.select().from(scheduleItems).where(visible(scheduleItems)));
+  const exceptions = active(await db.select().from(scheduleExceptions).where(visible(scheduleExceptions)));
   return scheduleForDay(items, exceptions, day).map(s => ({ id: s.id, startMin: s.startMin, endMin: s.endMin, fixed: true, flexibility: "fixed" as const }));
 }
 
+type PlannerExecutor = Pick<ReturnType<typeof getDb>, "select">;
+// UUIDs are global keys: a retry may only reuse a key created by this account.
+async function assertRetryOwner(db: PlannerExecutor, table: typeof tasks | typeof transactions | typeof journalEntries | typeof reflowLog | typeof projects | typeof stages | typeof recurringBills, id: string) {
+  const [row] = await db.select({ ownerId: table.ownerId }).from(table).where(eq(table.id, id));
+  if (row && row.ownerId !== currentUserId()) throw new TRPCError({ code: "NOT_FOUND" });
+}
+async function requireProject(db: PlannerExecutor, id: string) {
+  const [project] = await db.select().from(projects).where(and(visible(projects), eq(projects.id, id), eq(projects.isDeleted, false)));
+  if (!project) throw new TRPCError({ code: "NOT_FOUND", message: "Проект не найден" });
+  return project;
+}
+async function taskWorkspace(db: PlannerExecutor, input: { projectId?: string | null; stageId?: string | null; parentId?: string | null; dependsOn?: string | null; workspaceId?: string | null }) {
+  let workspaceId = input.workspaceId ?? null;
+  const links: { workspaceId: string | null }[] = [];
+  if (input.projectId) links.push(await requireProject(db, input.projectId));
+  if (input.parentId) {
+    const [parent] = await db.select().from(tasks).where(and(visible(tasks), eq(tasks.id, input.parentId), eq(tasks.isDeleted, false)));
+    if (!parent || parent.parentId) throw new TRPCError({ code: "BAD_REQUEST", message: "Родительская задача не найдена" });
+    links.push(parent);
+  }
+  if (links.length) {
+    const inherited = links[0].workspaceId;
+    if (links.some(link => link.workspaceId !== inherited) || (input.workspaceId !== undefined && input.workspaceId !== inherited)) throw new TRPCError({ code: "BAD_REQUEST", message: "Связанные задачи и проект должны быть в одном пространстве" });
+    workspaceId = inherited;
+  }
+  if (input.stageId) {
+    const [stage] = await db.select().from(stages).where(and(visible(stages), eq(stages.id, input.stageId), eq(stages.isDeleted, false)));
+    if (!stage || stage.projectId !== input.projectId || stage.workspaceId !== workspaceId) throw new TRPCError({ code: "BAD_REQUEST", message: "Этап не принадлежит выбранному проекту" });
+  }
+  if (input.dependsOn) {
+    const [dependency] = await db.select().from(tasks).where(and(visible(tasks), eq(tasks.id, input.dependsOn), eq(tasks.isDeleted, false)));
+    if (!dependency || dependency.workspaceId !== workspaceId) throw new TRPCError({ code: "BAD_REQUEST", message: "Зависимые задачи должны быть в одном пространстве" });
+  }
+  assertWorkspace(workspaceId);
+  return workspaceId;
+}
+async function requireScheduleLink(db: PlannerExecutor, id: string | null | undefined, workspaceId: string | null) {
+  if (!id) return;
+  if (workspaceId) throw new TRPCError({ code: "BAD_REQUEST", message: "Общие задачи нельзя связывать с личным расписанием" });
+  const [event] = await db.select({ id: scheduleItems.id }).from(scheduleItems).where(and(privateScope(scheduleItems), eq(scheduleItems.id, id), eq(scheduleItems.isDeleted, false)));
+  if (!event) throw new TRPCError({ code: "BAD_REQUEST", message: "Событие расписания не найдено" });
+}
+
 export const plannerRouter = createRouter({
-  auth: createRouter({
-    status: publicQuery.query(({ ctx }) => ({ authenticated: hasSession(ctx.req) })),
-    login: publicQuery
-      .input(z.object({ password: z.string().min(1).max(200) }))
-      .mutation(({ ctx, input }) => {
-        const ip = ctx.req.headers.get("x-forwarded-for") ?? "local";
-        const attempt = loginAttempts.get(ip);
-        if (attempt && attempt.resetAt > Date.now() && attempt.count >= 8) {
-          throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "Слишком много попыток. Подождите минуту." });
-        }
-        const expectedPassword = env.plannerPassword || "ritm2026";
-        if (input.password !== expectedPassword) {
-          loginAttempts.set(ip, {
-            count: (attempt?.resetAt && attempt.resetAt > Date.now() ? attempt.count : 0) + 1,
-            resetAt: Date.now() + 60_000,
-          });
-          throw new TRPCError({ code: "UNAUTHORIZED", message: "Неверный пароль" });
-        }
-        loginAttempts.delete(ip);
-        const timestamp = Math.floor(Date.now() / 1000).toString();
-        const token = `${timestamp}.${signature(timestamp)}`;
-        ctx.resHeaders.append(
-          "Set-Cookie",
-          `${COOKIE_NAME}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_AGE_SECONDS}${env.isProduction ? "; Secure" : ""}`,
-        );
-        return { ok: true };
-      }),
-    logout: publicQuery.mutation(({ ctx }) => {
-      ctx.resHeaders.append(
-        "Set-Cookie",
-        `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`,
-      );
-      return { ok: true };
-    }),
-  }),
+  auth: authRouter,
 
   bootstrap: protectedQuery.query(async () => {
     await ensureSeed();
@@ -126,29 +109,37 @@ export const plannerRouter = createRouter({
       journalRows,
       settingsRows,
       blockRows,
+      billRows,
     ] = await Promise.all([
-      db.select().from(projects),
-      db.select().from(stages),
-      db.select().from(tasks).orderBy(tasks.position),
-      db.select().from(scheduleItems),
-      db.select().from(timeLogs).orderBy(desc(timeLogs.start)),
-      db.select().from(transactions).orderBy(desc(transactions.happenedAt)),
-      db.select().from(journalEntries).orderBy(desc(journalEntries.date)),
-      db.select().from(settings),
-      db.select().from(scheduledBlocks),
+      db.select().from(projects).where(visible(projects)),
+      db.select().from(stages).where(visible(stages)),
+      db.select().from(tasks).where(visible(tasks)).orderBy(tasks.position),
+      db.select().from(scheduleItems).where(visible(scheduleItems)),
+      db.select().from(timeLogs).where(visible(timeLogs)).orderBy(desc(timeLogs.start)),
+      db.select().from(transactions).where(visible(transactions)).orderBy(desc(transactions.happenedAt)),
+      db.select().from(journalEntries).where(visible(journalEntries)).orderBy(desc(journalEntries.date)),
+      db.select().from(settings).where(visible(settings)),
+      db.select().from(scheduledBlocks).where(visible(scheduledBlocks)),
+      db.select().from(recurringBills).where(privateScope(recurringBills)),
     ]);
+    const account = currentAccount();
+    const spaces = account.workspaceIds.length ? await db.select({ id: workspaces.id, name: workspaces.name }).from(workspaces).where(inArray(workspaces.id, account.workspaceIds)) : [];
     return {
+      user: { id: account.id, name: account.name },
+      workspaces: spaces,
+      busyBlocks: [] as { id: string; start: Date; end: Date }[],
       serverTime: new Date(),
       projects: active(projectRows),
       stages: active(stageRows),
       tasks: active(taskRows),
       schedule: active(scheduleRows),
-      scheduleExceptions: active(await db.select().from(scheduleExceptions)),
+      scheduleExceptions: active(await db.select().from(scheduleExceptions).where(visible(scheduleExceptions))),
       timeLogs: active(timeRows),
       transactions: active(transactionRows),
       journal: active(journalRows),
       settings: settingsRows[0] ?? null,
       scheduledBlocks: active(blockRows),
+      recurringBills: active(billRows),
       activeTimer: active(timeRows).find((log) => log.end === null) ?? null,
     };
   }),
@@ -156,10 +147,12 @@ export const plannerRouter = createRouter({
   tasks: createRouter({
     reorder: protectedQuery.input(z.object({ operationId: z.string().uuid(), id: z.string().min(1).max(36), beforeId: z.string().min(1).max(36).nullable(), status: z.enum(["plan", "doing", "done"]), expectedPositions: z.array(z.object({ id: z.string().min(1).max(36), position: z.number().int(), status: z.enum(["plan", "doing", "done"]) })).max(10000).optional() })).mutation(async ({ input }) => {
       await getDb().transaction(async tx => {
-        await tx.select().from(settings).where(eq(settings.id, "default")).for("update");
-        const [seen] = await tx.select().from(reflowLog).where(eq(reflowLog.id, input.operationId));
+        await lockPlanning(tx);
+        await tx.select().from(settings).where(and(visible(settings), eq(settings.id, currentSettingsId()))).for("update");
+        await assertRetryOwner(tx, reflowLog, input.operationId);
+        const [seen] = await tx.select().from(reflowLog).where(and(visible(reflowLog), eq(reflowLog.id, input.operationId)));
         if (seen) return;
-        const rows = await tx.select().from(tasks).where(eq(tasks.isDeleted, false)).orderBy(tasks.position, tasks.id);
+        const rows = await tx.select().from(tasks).where(and(visible(tasks), eq(tasks.isDeleted, false))).orderBy(tasks.position, tasks.id);
         if (input.expectedPositions && !taskOrderMatches(input.expectedPositions, rows)) throw new TRPCError({ code: "CONFLICT", message: "Список изменился в другой вкладке. Обновите задачи и повторите перенос." });
         const moved = rows.find(t => t.id === input.id);
         if (!moved) throw new TRPCError({ code: "NOT_FOUND", message: "Задача не найдена" });
@@ -171,21 +164,22 @@ export const plannerRouter = createRouter({
         next.splice(index, 0, moved);
         for (let position = 0; position < next.length; position++) {
           const row = next[position];
-          if (row.position !== position || row.id === moved.id) await tx.update(tasks).set({ position, ...(row.id === moved.id ? { status: input.status, completedAt: input.status === "done" ? row.completedAt ?? new Date() : null } : {}), updatedAt: new Date() }).where(eq(tasks.id, row.id));
+          if (row.position !== position || row.id === moved.id) await tx.update(tasks).set({ position, ...(row.id === moved.id ? { status: input.status, completedAt: input.status === "done" ? row.completedAt ?? new Date() : null } : {}), updatedAt: new Date() }).where(and(visible(tasks), eq(tasks.id, row.id)));
         }
-        await tx.insert(reflowLog).values({ id: input.operationId, reason: "task-reorder", changes: JSON.stringify({ before: rows.map(r => ({ id: r.id, position: r.position, status: r.status, completedAt: r.completedAt })), after: next.map((r, position) => ({ id: r.id, position, status: r.id === moved.id ? input.status : r.status })) }), applied: true });
+        await tx.insert(reflowLog).values(owned({ id: input.operationId, reason: "task-reorder", changes: JSON.stringify({ before: rows.map(r => ({ id: r.id, position: r.position, status: r.status, completedAt: r.completedAt })), after: next.map((r, position) => ({ id: r.id, position, status: r.id === moved.id ? input.status : r.status })) }), applied: true }));
       }); return { ok: true };
     }),
     undoReorder: protectedQuery.input(z.object({ operationId: z.string().uuid() })).mutation(async ({ input }) => {
       await getDb().transaction(async tx => {
-        await tx.select().from(settings).where(eq(settings.id, "default")).for("update");
-        const [log] = await tx.select().from(reflowLog).where(eq(reflowLog.id, input.operationId)).for("update");
+        await lockPlanning(tx);
+        await tx.select().from(settings).where(and(visible(settings), eq(settings.id, currentSettingsId()))).for("update");
+        const [log] = await tx.select().from(reflowLog).where(and(visible(reflowLog), eq(reflowLog.id, input.operationId))).for("update");
         if (!log || !log.applied || log.reason !== "task-reorder") return;
         const change = JSON.parse(log.changes) as { before: { id: string; position: number; status: string; completedAt: string | null }[]; after: { id: string; position: number; status: string }[] };
-        const rows = await tx.select().from(tasks).where(eq(tasks.isDeleted, false)).for("update");
+        const rows = await tx.select().from(tasks).where(and(visible(tasks), eq(tasks.isDeleted, false))).for("update");
         for (const expected of change.after) { const row = rows.find(r => r.id === expected.id); if (!row || row.position !== expected.position || row.status !== expected.status) throw new TRPCError({ code: "CONFLICT", message: "После перемещения список изменился. Отмена недоступна." }); }
-        for (const old of change.before) { const after = change.after.find(r => r.id === old.id)!; if (old.position !== after.position || old.status !== after.status) await tx.update(tasks).set({ position: old.position, status: old.status, completedAt: old.completedAt ? new Date(old.completedAt) : null, updatedAt: new Date() }).where(eq(tasks.id, old.id)); }
-        await tx.update(reflowLog).set({ applied: false, updatedAt: new Date() }).where(eq(reflowLog.id, log.id));
+        for (const old of change.before) { const after = change.after.find(r => r.id === old.id)!; if (old.position !== after.position || old.status !== after.status) await tx.update(tasks).set({ position: old.position, status: old.status, completedAt: old.completedAt ? new Date(old.completedAt) : null, updatedAt: new Date() }).where(and(visible(tasks), eq(tasks.id, old.id))); }
+        await tx.update(reflowLog).set({ applied: false, updatedAt: new Date() }).where(and(visible(reflowLog), eq(reflowLog.id, log.id)));
       }); return { ok: true };
     }),
     create: protectedQuery
@@ -196,31 +190,34 @@ export const plannerRouter = createRouter({
         due: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
         estimateMin: z.number().int().min(15).max(1440).default(30),
         importance: z.number().int().min(1).max(3).default(2),
+        workspaceId: z.string().uuid().nullable().optional(),
         projectId: z.string().min(1).max(36).nullable().optional(),
         stageId: z.string().min(1).max(36).nullable().optional(),
         dependsOn: z.string().uuid().nullable().optional(),
         parentId: z.string().uuid().nullable().optional(),
+        scheduleItemId: z.string().uuid().nullable().optional(),
         isMit: z.boolean().default(false),
         flexibility: z.enum(["fixed", "flexible", "optional"]).default("flexible"),
       }))
       .mutation(async ({ input }) => {
         const id = input.id ?? crypto.randomUUID();
-        if (input.dependsOn || input.parentId) {
-          await getDb().transaction(async tx => {
-            await tx.select().from(settings).where(eq(settings.id, "default")).for("update");
-            const rows = await tx.select().from(tasks).where(eq(tasks.isDeleted, false)).for("update");
-            if (rows.some(row => row.id === id)) return;
-            if (input.parentId) {
-              const parent = rows.find(row => row.id === input.parentId);
-              if (!parent || parent.parentId) throw new TRPCError({ code: "BAD_REQUEST", message: "Выберите существующую задачу верхнего уровня" });
-              if (input.parentId === id) throw new TRPCError({ code: "BAD_REQUEST", message: "Задача не может быть своей подзадачей" });
-            }
-            const dependency = rows.find(row => row.id === input.dependsOn);
-            if (input.dependsOn && !dependency) throw new TRPCError({ code: "BAD_REQUEST", message: "Зависимая задача не найдена" });
-            if (dependencyHasCycle(rows, id, input.dependsOn ?? null)) throw new TRPCError({ code: "BAD_REQUEST", message: "Такая зависимость создаст цикл" });
-            await tx.insert(tasks).values({ ...input, id }).onDuplicateKeyUpdate({ set: { id: sql`id` } });
-          });
-        } else await getDb().insert(tasks).values({ ...input, id }).onDuplicateKeyUpdate({ set: { id: sql`id` } });
+        await getDb().transaction(async tx => {
+        await lockPlanning(tx);
+          await tx.select().from(settings).where(and(visible(settings), eq(settings.id, currentSettingsId()))).for("update");
+          await assertRetryOwner(tx, tasks, id);
+          const rows = await tx.select().from(tasks).where(and(visible(tasks), eq(tasks.isDeleted, false))).for("update");
+          if (rows.some(row => row.id === id)) return;
+          const workspaceId = await taskWorkspace(tx, input);
+          const scheduleItemId = input.scheduleItemId ?? (input.parentId ? rows.find(row => row.id === input.parentId)?.scheduleItemId : null);
+          await requireScheduleLink(tx, scheduleItemId, workspaceId);
+          if (input.parentId === id || dependencyHasCycle(rows, id, input.dependsOn ?? null)) throw new TRPCError({ code: "BAD_REQUEST", message: "Связь создаёт цикл" });
+          let stageId = input.stageId ?? null;
+          if (input.projectId && !stageId) {
+            const [firstStage] = await tx.select({ id: stages.id }).from(stages).where(and(visible(stages), eq(stages.projectId, input.projectId), eq(stages.isDeleted, false))).orderBy(stages.position).limit(1);
+            stageId = firstStage?.id ?? null;
+          }
+          await tx.insert(tasks).values(owned({ ...input, stageId, scheduleItemId, workspaceId, id })).onDuplicateKeyUpdate({ set: { id: sql`id` } });
+        });
         return { id };
       }),
     update: protectedQuery
@@ -231,10 +228,12 @@ export const plannerRouter = createRouter({
         due: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
         estimateMin: z.number().int().min(15).max(1440).optional(),
         importance: z.number().int().min(1).max(3).optional(),
+        workspaceId: z.string().uuid().nullable().optional(),
         projectId: z.string().min(1).max(36).nullable().optional(),
         stageId: z.string().min(1).max(36).nullable().optional(),
         dependsOn: z.string().uuid().nullable().optional(),
         parentId: z.string().uuid().nullable().optional(),
+        scheduleItemId: z.string().uuid().nullable().optional(),
         status: z.enum(["plan", "doing", "done"]).optional(),
         isMit: z.boolean().optional(),
         flexibility: z.enum(["fixed", "flexible", "optional"]).optional(),
@@ -243,10 +242,16 @@ export const plannerRouter = createRouter({
       .mutation(async ({ input }) => {
         const { id, ...values } = input;
         await getDb().transaction(async tx => {
-          await tx.select().from(settings).where(eq(settings.id, "default")).for("update");
-          const [row] = await tx.select().from(tasks).where(and(eq(tasks.id, id), eq(tasks.isDeleted, false))).for("update");
+        await lockPlanning(tx);
+          await tx.select().from(settings).where(and(visible(settings), eq(settings.id, currentSettingsId()))).for("update");
+          const [row] = await tx.select().from(tasks).where(and(visible(tasks), and(eq(tasks.id, id), eq(tasks.isDeleted, false)))).for("update");
           if (!row) throw new TRPCError({ code: "NOT_FOUND", message: "Задача не найдена" });
-          const rows = await tx.select().from(tasks).where(eq(tasks.isDeleted, false)).for("update");
+          const rows = await tx.select().from(tasks).where(and(visible(tasks), eq(tasks.isDeleted, false))).for("update");
+          const workspaceId = await taskWorkspace(tx, { ...row, ...values, workspaceId: values.workspaceId !== undefined ? values.workspaceId : (values.projectId !== undefined || values.parentId !== undefined ? undefined : row.workspaceId) });
+          if (workspaceId !== row.workspaceId && row.ownerId !== currentUserId()) throw new TRPCError({ code: "FORBIDDEN", message: "Только автор может менять пространство задачи" });
+          if (workspaceId !== row.workspaceId && rows.some(task => task.parentId === id || task.dependsOn === id)) throw new TRPCError({ code: "BAD_REQUEST", message: "Сначала измените связанные задачи" });
+          values.workspaceId = workspaceId;
+          if (values.scheduleItemId !== undefined || workspaceId !== row.workspaceId) await requireScheduleLink(tx, values.scheduleItemId ?? row.scheduleItemId, workspaceId);
           const dependencyId = values.dependsOn === undefined ? row.dependsOn : values.dependsOn;
           const dependency = dependencyId ? rows.find(task => task.id === dependencyId) : undefined;
           if (dependencyId && !dependency) throw new TRPCError({ code: "BAD_REQUEST", message: "Зависимая задача не найдена" });
@@ -258,17 +263,24 @@ export const plannerRouter = createRouter({
           if ((values.status ?? row.status) === "done" && dependencyId && dependency?.status !== "done") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Сначала завершите задачу, от которой зависит эта" });
           if ((values.status ?? row.status) === "done" && rows.some(task => task.parentId === id && task.status !== "done")) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Сначала завершите подзадачи" });
           if (row.status === "done" && values.status && values.status !== "done" && rows.some(task => task.dependsOn === id && task.status === "done")) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Сначала верните в работу завершённые задачи, которые зависят от этой" });
-          await tx.update(tasks).set({ ...values, ...(values.status ? { completedAt: values.status === "done" ? row.completedAt ?? new Date() : null } : {}), updatedAt: new Date() }).where(eq(tasks.id, id));
+          await tx.update(scheduledBlocks).set({ workspaceId, updatedAt: new Date() }).where(and(visible(scheduledBlocks), eq(scheduledBlocks.taskId, id)));
+          await tx.update(tasks).set({ ...values, ...(values.status ? { completedAt: values.status === "done" ? row.completedAt ?? new Date() : null } : {}), updatedAt: new Date() }).where(and(visible(tasks), eq(tasks.id, id)));
+          if (workspaceId && workspaceId !== row.workspaceId) {
+            const blocks = await tx.select().from(scheduledBlocks).where(and(visible(scheduledBlocks), eq(scheduledBlocks.taskId, id), eq(scheduledBlocks.isDeleted, false)));
+            for (const block of blocks) await assertSharedSlot(tx, [id], block.start, block.end, blocks.map(item => item.id));
+            if (row.plannedStart && row.plannedEnd) await assertSharedSlot(tx, [id], row.plannedStart, row.plannedEnd, blocks.map(item => item.id));
+          }
         });
         return { ok: true };
       }),
     remove: protectedQuery.input(idInput).mutation(async ({ input }) => {
       await getDb().transaction(async tx => {
-        await tx.select().from(settings).where(eq(settings.id, "default")).for("update");
-        const rows = await tx.select().from(tasks).where(eq(tasks.isDeleted, false)).for("update");
+        await lockPlanning(tx);
+        await tx.select().from(settings).where(and(visible(settings), eq(settings.id, currentSettingsId()))).for("update");
+        const rows = await tx.select().from(tasks).where(and(visible(tasks), eq(tasks.isDeleted, false))).for("update");
         if (rows.some(task => task.dependsOn === input.id)) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Сначала уберите зависимость в связанных задачах" });
         if (rows.some(task => task.parentId === input.id)) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Сначала архивируйте подзадачи" });
-        await tx.update(tasks).set({ isDeleted: true, updatedAt: new Date() }).where(eq(tasks.id, input.id));
+        await tx.update(tasks).set({ isDeleted: true, updatedAt: new Date() }).where(and(visible(tasks), eq(tasks.id, input.id)));
       });
       return { ok: true };
     }),
@@ -279,6 +291,7 @@ export const plannerRouter = createRouter({
       .input(z.object({
         id: z.string().uuid().optional(),
         name: z.string().trim().min(1).max(160),
+        workspaceId: z.string().uuid().nullable().optional(),
         type: z.enum(["money", "study", "personal", "agency"]).default("personal"),
         deadline: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
         dailyMinutesGoal: z.number().int().min(0).max(1440).default(60),
@@ -287,8 +300,15 @@ export const plannerRouter = createRouter({
       }))
       .mutation(async ({ input }) => {
         const id = input.id ?? crypto.randomUUID();
-        await getDb().insert(projects).values({ ...input, id });
-        await getDb().insert(stages).values({ id: crypto.randomUUID(), projectId: id, name: "Первый этап", position: 1, deadline: input.deadline });
+        assertWorkspace(input.workspaceId);
+        await getDb().transaction(async tx => {
+          await lockPlanning(tx);
+          await assertRetryOwner(tx, projects, id);
+          const [existing] = await tx.select({ id: projects.id }).from(projects).where(and(visible(projects), eq(projects.id, id)));
+          if (existing) return;
+          await tx.insert(projects).values(owned({ ...input, id }));
+          await tx.insert(stages).values(owned({ id: crypto.randomUUID(), projectId: id, workspaceId: input.workspaceId, name: "Первый этап", position: 1, deadline: input.deadline }));
+        });
         return { id };
       }),
     update: protectedQuery
@@ -302,7 +322,7 @@ export const plannerRouter = createRouter({
       }))
       .mutation(async ({ input }) => {
         const { id, ...values } = input;
-        await getDb().update(projects).set({ ...values, updatedAt: new Date() }).where(eq(projects.id, id));
+        await getDb().update(projects).set({ ...values, updatedAt: new Date() }).where(and(visible(projects), eq(projects.id, id)));
         return { ok: true };
       }),
   }),
@@ -312,19 +332,24 @@ export const plannerRouter = createRouter({
       .input(z.object({ projectId: z.string().min(1).max(36), taskId: z.string().min(1).max(36).nullable().optional(), note: z.string().max(500).optional() }))
       .mutation(async ({ input }) => {
         const db = getDb();
-        const [running] = await db.select().from(timeLogs).where(and(isNull(timeLogs.end), eq(timeLogs.isDeleted, false))).limit(1);
+        await requireProject(db, input.projectId);
+        if (input.taskId) {
+          const [task] = await db.select().from(tasks).where(and(visible(tasks), eq(tasks.id, input.taskId), eq(tasks.isDeleted, false)));
+          if (!task || task.projectId !== input.projectId) throw new TRPCError({ code: "BAD_REQUEST", message: "Задача не принадлежит проекту" });
+        }
+        const [running] = await db.select().from(timeLogs).where(and(visible(timeLogs), and(isNull(timeLogs.end), eq(timeLogs.isDeleted, false)))).limit(1);
         if (running) throw new TRPCError({ code: "CONFLICT", message: "Сначала остановите текущий таймер" });
         const id = crypto.randomUUID();
-        await db.insert(timeLogs).values({ id, projectId: input.projectId, taskId: input.taskId, note: input.note, start: new Date(), minutes: 0 });
+        await db.insert(timeLogs).values(owned({ id, projectId: input.projectId, taskId: input.taskId, note: input.note, start: new Date(), minutes: 0 }));
         return { id };
       }),
     stop: protectedQuery.mutation(async () => {
       const db = getDb();
-      const [running] = await db.select().from(timeLogs).where(and(isNull(timeLogs.end), eq(timeLogs.isDeleted, false))).orderBy(desc(timeLogs.start)).limit(1);
+      const [running] = await db.select().from(timeLogs).where(and(visible(timeLogs), and(isNull(timeLogs.end), eq(timeLogs.isDeleted, false)))).orderBy(desc(timeLogs.start)).limit(1);
       if (!running) return { ok: false, minutes: 0 };
       const end = new Date();
       const minutes = Math.max(1, Math.round((end.getTime() - running.start.getTime()) / 60_000));
-      await db.update(timeLogs).set({ end, minutes, updatedAt: new Date() }).where(eq(timeLogs.id, running.id));
+      await db.update(timeLogs).set({ end, minutes, updatedAt: new Date() }).where(and(visible(timeLogs), eq(timeLogs.id, running.id)));
       return { ok: true, minutes };
     }),
   }),
@@ -343,11 +368,63 @@ export const plannerRouter = createRouter({
       }))
       .mutation(async ({ input }) => {
         const id = input.id ?? crypto.randomUUID();
-        await getDb().insert(transactions).values({ ...input, id, happenedAt: input.happenedAt ?? new Date() }).onDuplicateKeyUpdate({ set: { id: sql`id` } });
+        await assertRetryOwner(getDb(), transactions, id);
+        if (input.projectId) await requireProject(getDb(), input.projectId);
+        await getDb().insert(transactions).values(owned({ ...input, id, happenedAt: input.happenedAt ?? new Date() })).onDuplicateKeyUpdate({ set: { id: sql`id` } });
         return { id };
       }),
     remove: protectedQuery.input(idInput).mutation(async ({ input }) => {
-      await getDb().update(transactions).set({ isDeleted: true, updatedAt: new Date() }).where(eq(transactions.id, input.id));
+      await getDb().update(transactions).set({ isDeleted: true, updatedAt: new Date() }).where(and(visible(transactions), eq(transactions.id, input.id)));
+      return { ok: true };
+    }),
+  }),
+
+  bills: createRouter({
+    create: protectedQuery.input(z.object({ id: z.string().uuid(), name: z.string().trim().min(1).max(120), amount: money.positive(), currency: currencyCode.default("TJS"), dueDay: z.number().int().min(1).max(31), category: z.string().trim().min(1).max(80).default("Обязательные платежи") })).mutation(async ({ input }) => {
+      await assertRetryOwner(getDb(), recurringBills, input.id);
+      await getDb().insert(recurringBills).values(owned(input)).onDuplicateKeyUpdate({ set: { id: sql`id` } });
+      return { id: input.id };
+    }),
+    remove: protectedQuery.input(idInput).mutation(async ({ input }) => {
+      await getDb().update(recurringBills).set({ isDeleted: true, updatedAt: new Date() }).where(and(privateScope(recurringBills), eq(recurringBills.id, input.id)));
+      return { ok: true };
+    }),
+    markPaid: protectedQuery.input(idInput).mutation(async ({ input }) => getDb().transaction(async tx => {
+      await lockPlanning(tx);
+      const [bill] = await tx.select().from(recurringBills).where(and(privateScope(recurringBills), eq(recurringBills.id, input.id), eq(recurringBills.isDeleted, false))).for("update");
+      if (!bill) throw new TRPCError({ code: "NOT_FOUND", message: "Платёж не найден" });
+      const [prefs] = await tx.select().from(settings).where(and(visible(settings), eq(settings.id, currentSettingsId())));
+      const month = dayInZone(new Date(), prefs?.timezone).slice(0, 7);
+      if (bill.paidThrough === month) return { ok: true, alreadyPaid: true };
+      await tx.insert(transactions).values(owned({ id: crypto.randomUUID(), kind: "expense", amount: bill.amount, currency: bill.currency, category: bill.category, note: bill.name, happenedAt: new Date() }));
+      await tx.update(recurringBills).set({ paidThrough: month, updatedAt: new Date() }).where(and(privateScope(recurringBills), eq(recurringBills.id, bill.id)));
+      return { ok: true, alreadyPaid: false };
+    })),
+  }),
+
+  stages: createRouter({
+    create: protectedQuery.input(z.object({ id: z.string().uuid().optional(), projectId: z.string().uuid(), name: z.string().trim().min(1).max(160), deadline: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional() })).mutation(async ({ input }) => {
+      const project = await requireProject(getDb(), input.projectId);
+      const id = input.id ?? crypto.randomUUID();
+      await assertRetryOwner(getDb(), stages, id);
+      const existing = await getDb().select({ id: stages.id }).from(stages).where(and(visible(stages), eq(stages.id, id)));
+      if (existing.length) return { id };
+      const rows = await getDb().select().from(stages).where(and(visible(stages), eq(stages.projectId, project.id), eq(stages.isDeleted, false)));
+      await getDb().insert(stages).values(owned({ id, projectId: project.id, workspaceId: project.workspaceId, name: input.name, deadline: input.deadline ?? project.deadline ?? null, position: rows.length + 1 }));
+      return { id };
+    }),
+    rename: protectedQuery.input(z.object({ id: z.string().uuid(), name: z.string().trim().min(1).max(160) })).mutation(async ({ input }) => {
+      const [stage] = await getDb().select().from(stages).where(and(visible(stages), eq(stages.id, input.id), eq(stages.isDeleted, false)));
+      if (!stage) throw new TRPCError({ code: "NOT_FOUND", message: "Этап не найден" });
+      await getDb().update(stages).set({ name: input.name, updatedAt: new Date() }).where(and(visible(stages), eq(stages.id, input.id)));
+      return { ok: true };
+    }),
+    remove: protectedQuery.input(idInput).mutation(async ({ input }) => {
+      const [stage] = await getDb().select().from(stages).where(and(visible(stages), eq(stages.id, input.id), eq(stages.isDeleted, false)));
+      if (!stage) throw new TRPCError({ code: "NOT_FOUND", message: "Этап не найден" });
+      const [tasksInStage] = await getDb().select({ id: tasks.id }).from(tasks).where(and(visible(tasks), eq(tasks.stageId, stage.id), eq(tasks.isDeleted, false))).limit(1);
+      if (tasksInStage) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Сначала переместите задачи этого этапа" });
+      await getDb().update(stages).set({ isDeleted: true, updatedAt: new Date() }).where(and(visible(stages), eq(stages.id, stage.id)));
       return { ok: true };
     }),
   }),
@@ -369,25 +446,31 @@ export const plannerRouter = createRouter({
       }))
       .mutation(async ({ input }) => {
         const db = getDb();
+        if (input.id) await assertRetryOwner(db, journalEntries, input.id);
         if (input.operationId) return db.transaction(async tx => {
-          await tx.select().from(settings).where(eq(settings.id, "default")).for("update");
-          const [seen] = await tx.select().from(reflowLog).where(eq(reflowLog.id, input.operationId!));
+          await lockPlanning(tx);
+          await tx.select().from(settings).where(and(visible(settings), eq(settings.id, currentSettingsId()))).for("update");
+          await assertRetryOwner(tx, reflowLog, input.operationId!);
+          const [seen] = await tx.select().from(reflowLog).where(and(visible(reflowLog), eq(reflowLog.id, input.operationId!)));
           if (seen) return { id: input.id ?? input.operationId! };
           const { operationId, id: proposedId, ...values } = input;
-          const [previous] = await tx.select().from(journalEntries).where(eq(journalEntries.date, values.date)).limit(1);
+          const [previous] = await tx.select().from(journalEntries).where(and(visible(journalEntries), eq(journalEntries.date, values.date))).limit(1);
           const id = previous?.id ?? proposedId ?? crypto.randomUUID();
-          if (previous) await tx.update(journalEntries).set({ ...values, isDeleted: false, updatedAt: new Date() }).where(eq(journalEntries.id, id));
-          else await tx.insert(journalEntries).values({ ...values, id });
-          await tx.insert(reflowLog).values({ id: operationId!, reason: "journal-save", changes: JSON.stringify({ journalId: id }), applied: true });
+          if (previous) await tx.update(journalEntries).set({ ...values, isDeleted: false, updatedAt: new Date() }).where(and(visible(journalEntries), eq(journalEntries.id, id)));
+          else await tx.insert(journalEntries).values(owned({ ...values, id }));
+          await tx.insert(reflowLog).values(owned({ id: operationId!, reason: "journal-save", changes: JSON.stringify({ journalId: id }), applied: true }));
           return { id };
         });
-        const [existing] = await db.select().from(journalEntries).where(eq(journalEntries.date, input.date)).limit(1);
+        const [existing] = await db.select().from(journalEntries).where(and(visible(journalEntries), eq(journalEntries.date, input.date))).limit(1);
         if (existing) {
-          await db.update(journalEntries).set({ ...input, updatedAt: new Date() }).where(eq(journalEntries.id, existing.id));
+          const values = { ...input };
+          delete values.id;
+          delete values.operationId;
+          await db.update(journalEntries).set({ ...values, updatedAt: new Date() }).where(and(visible(journalEntries), eq(journalEntries.id, existing.id)));
           return { id: existing.id };
         }
         const id = crypto.randomUUID();
-        await db.insert(journalEntries).values({ ...input, id });
+        await db.insert(journalEntries).values(owned({ ...input, id }));
         return { id };
       }),
   }),
@@ -405,11 +488,11 @@ export const plannerRouter = createRouter({
       .mutation(async ({ input }) => {
         if (input.endMin <= input.startMin) throw new TRPCError({ code: "BAD_REQUEST", message: "Конец должен быть позже начала" });
         const id = crypto.randomUUID();
-        await getDb().insert(scheduleItems).values({ ...input, id });
+        await getDb().insert(scheduleItems).values(owned({ ...input, id }));
         return { id };
       }),
     remove: protectedQuery.input(idInput).mutation(async ({ input }) => {
-      await getDb().update(scheduleItems).set({ isDeleted: true, updatedAt: new Date() }).where(eq(scheduleItems.id, input.id));
+      await getDb().update(scheduleItems).set({ isDeleted: true, updatedAt: new Date() }).where(and(visible(scheduleItems), eq(scheduleItems.id, input.id)));
       return { ok: true };
     }),
   }),
@@ -431,10 +514,12 @@ export const plannerRouter = createRouter({
         goldEnabled: z.boolean().optional(),
         debtsEnabled: z.boolean().optional(),
         agencyGoal: money.optional(),
-        agencyGoalCurrency: currencyCode.optional(),
+        agencyGoalCurrency: z.preprocess(value => agencyCurrencyAliases[String(value).toLowerCase()] ?? value, currencyCode).optional(),
+        monthlySavings: money.optional(),
       }))
       .mutation(async ({ input }) => {
-        await getDb().update(settings).set({ ...input, updatedAt: new Date() }).where(eq(settings.id, "default"));
+        if (input.name) await getDb().update(users).set({ name: input.name }).where(eq(users.id, currentUserId()));
+        await getDb().update(settings).set({ ...input, updatedAt: new Date() }).where(and(visible(settings), eq(settings.id, currentSettingsId())));
         return { ok: true };
       }),
   }),
@@ -444,7 +529,7 @@ export const plannerRouter = createRouter({
       .input(z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }))
       .query(async ({ input }) => {
         const db = getDb();
-        const [settingsRow] = await db.select().from(settings).where(eq(settings.id, "default"));
+        const [settingsRow] = await db.select().from(settings).where(and(visible(settings), eq(settings.id, currentSettingsId())));
         const fixed = await scheduleForDate(input.date);
         return getFreeWindows(
           settingsRow?.workStartMin ?? 480,
@@ -455,15 +540,18 @@ export const plannerRouter = createRouter({
     autoPlan: protectedQuery
       .input(z.object({ stageId: z.string().min(1).max(36), startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), days: z.number().int().min(1).max(14).default(7) }))
       .mutation(async ({ input }) => {
-        const db = getDb();
-        const [stage] = await db.select().from(stages).where(eq(stages.id, input.stageId));
+        return getDb().transaction(async db => {
+        await lockPlanning(db);
+        const [stage] = await db.select().from(stages).where(and(visible(stages), eq(stages.id, input.stageId), eq(stages.isDeleted, false)));
         if (!stage) throw new TRPCError({ code: "NOT_FOUND" });
-        const [project] = await db.select().from(projects).where(eq(projects.id, stage.projectId));
-        const stageTasks = (await db.select().from(tasks)).filter(
-          (task) => !task.isDeleted && task.stageId === input.stageId && task.status !== "done",
+        const project = await requireProject(db, stage.projectId);
+        const plannedRows = await db.select({ taskId: scheduledBlocks.taskId }).from(scheduledBlocks).where(and(visible(scheduledBlocks), eq(scheduledBlocks.isDeleted, false), eq(scheduledBlocks.status, "planned")));
+        const plannedTaskIds = new Set(plannedRows.map(row => row.taskId));
+        const stageTasks = (await db.select().from(tasks).where(visible(tasks))).filter(
+          (task) => !task.isDeleted && (task.stageId === input.stageId || (!task.stageId && task.projectId === stage.projectId)) && task.status !== "done" && !plannedTaskIds.has(task.id),
         );
         const windowsByDay: Record<string, { startMin: number; endMin: number }[]> = {};
-        const [settingsRow] = await db.select().from(settings).where(eq(settings.id, "default"));
+        const [settingsRow] = await db.select().from(settings).where(and(visible(settings), eq(settings.id, currentSettingsId())));
         for (let offset = 0; offset < input.days; offset += 1) {
           const date = new Date(`${input.startDate}T12:00:00Z`);
           date.setUTCDate(date.getUTCDate() + offset);
@@ -483,18 +571,53 @@ export const plannerRouter = createRouter({
         for (const allocation of allocations) {
           const start = dateAt(allocation.day, allocation.startMin, settingsRow?.timezone);
           const end = dateAt(allocation.day, allocation.endMin, settingsRow?.timezone);
-          await db.insert(scheduledBlocks).values({ id: crypto.randomUUID(), taskId: allocation.taskId, start, end });
-          await db.update(tasks).set({ plannedStart: start, plannedEnd: end, updatedAt: new Date() }).where(eq(tasks.id, allocation.taskId));
+          await assertSharedSlot(db, [allocation.taskId], start, end);
+          await db.insert(scheduledBlocks).values(owned({ id: crypto.randomUUID(), taskId: allocation.taskId, workspaceId: stageTasks.find(task => task.id === allocation.taskId)?.workspaceId, start, end }));
+          await db.update(tasks).set({ plannedStart: start, plannedEnd: end, updatedAt: new Date() }).where(and(visible(tasks), eq(tasks.id, allocation.taskId)));
         }
+        for (const task of stageTasks) if (!task.stageId && allocations.some(a => a.taskId === task.id)) await db.update(tasks).set({ stageId: input.stageId, updatedAt: new Date() }).where(and(visible(tasks), eq(tasks.id, task.id)));
         return { count: allocations.length, allocations };
+        });
       }),
+    scheduleTask: protectedQuery.input(z.object({ taskId: z.string().uuid(), startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) })).mutation(async ({ input }) => getDb().transaction(async tx => {
+      await lockPlanning(tx);
+      const [task] = await tx.select().from(tasks).where(and(visible(tasks), eq(tasks.id, input.taskId), eq(tasks.isDeleted, false))).for("update");
+      if (!task || task.status === "done") throw new TRPCError({ code: "NOT_FOUND", message: "Открытая задача не найдена" });
+      if (dayDistance(input.startDate, input.endDate) < 0 || dayDistance(input.startDate, input.endDate) > 30 || input.endDate > (task.due ?? input.endDate)) throw new TRPCError({ code: "BAD_REQUEST", message: "Выберите период до срока задачи длиной не более 31 дня" });
+      if (input.startDate < dayKey(new Date(), (await tx.select().from(settings).where(and(visible(settings), eq(settings.id, currentSettingsId()))))[0]?.timezone)) throw new TRPCError({ code: "BAD_REQUEST", message: "Нельзя планировать на прошедшую дату" });
+      const existing = await tx.select().from(scheduledBlocks).where(and(visible(scheduledBlocks), eq(scheduledBlocks.taskId, task.id), eq(scheduledBlocks.isDeleted, false)));
+      if (existing.length) throw new TRPCError({ code: "CONFLICT", message: "У задачи уже есть блоки в расписании" });
+      const [prefs] = await tx.select().from(settings).where(and(visible(settings), eq(settings.id, currentSettingsId())));
+      const timezone = prefs?.timezone ?? "Asia/Dushanbe";
+      const windowsByDay: Record<string, { startMin: number; endMin: number }[]> = {};
+      const today = dayKey(new Date(), timezone);
+      for (let offset = 0; ; offset++) {
+        const date = new Date(`${input.startDate}T12:00:00Z`); date.setUTCDate(date.getUTCDate() + offset);
+        const day = date.toISOString().slice(0, 10); if (day > input.endDate) break;
+        const blocks = await tx.select().from(scheduledBlocks).where(and(visible(scheduledBlocks), eq(scheduledBlocks.isDeleted, false)));
+        const events = await scheduleForDate(day);
+        for (const block of blocks) if (dayKey(block.start, timezone) === day && block.status === "planned") events.push({ id: block.id, startMin: minutesInZone(block.start, timezone), endMin: minutesInZone(block.end, timezone), fixed: true });
+        const startMin = day === today ? Math.max(prefs?.workStartMin ?? 480, Math.ceil((minutesInZone(new Date(), timezone) + 1) / 30) * 30) : prefs?.workStartMin ?? 480;
+        windowsByDay[day] = getFreeWindows(startMin, prefs?.workEndMin ?? 1320, events);
+      }
+      const allocations = allocateTasks([{ id: task.id, estimateMin: task.estimateMin, priority: task.importance }], windowsByDay, 1);
+      if (!allocations.length) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "До срока не нашлось свободного окна. Расширьте период или измените расписание." });
+      for (const allocation of allocations) {
+        const start = dateAt(allocation.day, allocation.startMin, timezone); const end = dateAt(allocation.day, allocation.endMin, timezone);
+        await assertSharedSlot(tx, [task.id], start, end);
+        await tx.insert(scheduledBlocks).values(owned({ id: crypto.randomUUID(), taskId: task.id, workspaceId: task.workspaceId, start, end }));
+      }
+      const minutes = allocations.reduce((sum, block) => sum + block.endMin - block.startMin, 0);
+      return { count: allocations.length, minutes, remainingMin: Math.max(0, task.estimateMin - minutes) };
+    })),
     reflow: protectedQuery.mutation(async () => {
-      const db = getDb();
-      const [settingsRow] = await db.select().from(settings).where(eq(settings.id, "default"));
+      return getDb().transaction(async db => {
+      await lockPlanning(db);
+      const [settingsRow] = await db.select().from(settings).where(and(visible(settings), eq(settings.id, currentSettingsId())));
       const today = dayKey(new Date(), settingsRow?.timezone);
       const fixed = await scheduleForDate(today);
-      const blocks = active(await db.select().from(scheduledBlocks)).filter((block) => dayKey(block.start, settingsRow?.timezone) === today && block.status === "planned");
-      const blockTasks = active(await db.select().from(tasks));
+      const blocks = active(await db.select().from(scheduledBlocks).where(visible(scheduledBlocks))).filter((block) => dayKey(block.start, settingsRow?.timezone) === today && block.status === "planned");
+      const blockTasks = active(await db.select().from(tasks).where(visible(tasks)));
       const events: MinuteEvent[] = [
         ...fixed,
         ...blocks.map((block) => ({
@@ -514,15 +637,17 @@ export const plannerRouter = createRouter({
         const start = dateAt(today, placement.startMin, settingsRow?.timezone);
         const end = dateAt(today, placement.endMin, settingsRow?.timezone);
         if (start.getTime() !== block.start.getTime() || end.getTime() !== block.end.getTime()) {
-          await db.update(scheduledBlocks).set({ start, end, status: "moved", updatedAt: new Date() }).where(eq(scheduledBlocks.id, block.id));
+          await assertSharedSlot(db, [block.taskId], start, end, [block.id]);
+          await db.update(scheduledBlocks).set({ start, end, status: "moved", updatedAt: new Date() }).where(and(visible(scheduledBlocks), eq(scheduledBlocks.id, block.id)));
           changed.push({ id: block.id, start, end });
         }
       }
       for (const id of result.removed) {
-        await db.update(scheduledBlocks).set({ status: "moved", isDeleted: true, updatedAt: new Date() }).where(eq(scheduledBlocks.id, id));
+        await db.update(scheduledBlocks).set({ status: "moved", isDeleted: true, updatedAt: new Date() }).where(and(visible(scheduledBlocks), eq(scheduledBlocks.id, id)));
       }
-      await db.insert(reflowLog).values({ id: crypto.randomUUID(), reason: "Пересборка оставшегося дня", changes: JSON.stringify({ changed, removed: result.removed }) });
+      await db.insert(reflowLog).values(owned({ id: crypto.randomUUID(), reason: "Пересборка оставшегося дня", changes: JSON.stringify({ changed, removed: result.removed }) }));
       return { moved: changed.length, removed: result.removed.length };
+      });
     }),
   }),
 
@@ -530,10 +655,11 @@ export const plannerRouter = createRouter({
     const db = getDb();
     return {
       exportedAt: new Date(),
-      projects: active(await db.select().from(projects).where(ne(projects.isDeleted, true))),
-      tasks: active(await db.select().from(tasks).where(ne(tasks.isDeleted, true))),
-      transactions: active(await db.select().from(transactions).where(ne(transactions.isDeleted, true))),
-      journal: active(await db.select().from(journalEntries).where(ne(journalEntries.isDeleted, true))),
+      projects: active(await db.select().from(projects).where(and(visible(projects), ne(projects.isDeleted, true)))),
+      tasks: active(await db.select().from(tasks).where(and(visible(tasks), ne(tasks.isDeleted, true)))),
+      transactions: active(await db.select().from(transactions).where(and(visible(transactions), ne(transactions.isDeleted, true)))),
+      journal: active(await db.select().from(journalEntries).where(and(visible(journalEntries), ne(journalEntries.isDeleted, true)))),
+      recurringBills: active(await db.select().from(recurringBills).where(and(privateScope(recurringBills), ne(recurringBills.isDeleted, true)))),
     };
   }),
 });

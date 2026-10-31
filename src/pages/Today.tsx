@@ -1,6 +1,8 @@
 import { scheduleForDay } from "@contracts/schedule";
 import { minutesInZone, daysLeftInMonth, normalizeCurrency } from "@contracts/shared";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { trpc } from "@/providers/trpc";
 import { ModuleAttention } from "@/components/ModuleAttention";
 import { DailyPlanner } from "@/components/DailyPlanner";
 import { CloseDay } from "@/components/Routines";
@@ -19,6 +21,7 @@ import {
   WalletCards,
 } from "lucide-react";
 import { getFreeWindows, safeToSpendToday } from "@contracts/planning";
+import { addCalendarDays } from "@contracts/shared";
 import {
   formatDuration,
   formatMoney,
@@ -38,6 +41,11 @@ export default function Today() {
   const [now, setNow] = useState(new Date());
   const today = localDayKey();
   const nowMinutes = minutesInZone(now, data.settings?.timezone);
+  const utils = trpc.useUtils();
+  const scheduleTask = trpc.planner.planning.scheduleTask.useMutation({
+    onSuccess: async result => { await utils.planner.bootstrap.invalidate(); toast.success(result.remainingMin ? `Распределено ${formatDuration(result.minutes)}, ещё ${formatDuration(result.remainingMin)} не поместилось` : `В расписание добавлено ${formatDuration(result.minutes)}`); },
+    onError: error => toast.error(error.message),
+  });
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 60_000);
@@ -45,7 +53,7 @@ export default function Today() {
   }, []);
 
 
-  const schedule = useMemo(() => scheduleForDay(data.schedule, data.scheduleExceptions ?? [], today)
+  const schedule = scheduleForDay(data.schedule, data.scheduleExceptions ?? [], today)
     .map((item) => ({
       id: item.id,
       title: item.title,
@@ -54,12 +62,14 @@ export default function Today() {
       kind: item.kind,
       location: item.location,
       fixed: true,
-    })), [data.schedule, data.scheduleExceptions, today]);
+      linkedTasks: data.tasks.filter(task => task.scheduleItemId === item.id && task.status !== "done" && (!task.due || task.due === today)),
+    }));
 
-  const taskBlocks = useMemo(() => data.scheduledBlocks
+  const taskBlocks = data.scheduledBlocks
     .filter((block) => localDayKey(block.start) === today)
     .map((block) => {
       const task = data.tasks.find((item) => item.id === block.taskId);
+      if (task?.status === "done" || task?.scheduleItemId) return null;
       return {
         id: block.id,
         title: task?.title ?? "Рабочий блок",
@@ -68,19 +78,20 @@ export default function Today() {
         kind: "project",
         location: "Запланированный блок",
         fixed: false,
+        linkedTasks: [],
       };
-    }), [data.scheduledBlocks, data.tasks, today]);
+    }).filter((block): block is NonNullable<typeof block> => block !== null);
 
-  const agenda = useMemo(() => [...schedule, ...taskBlocks].sort((a, b) => a.startMin - b.startMin), [schedule, taskBlocks]);
-  const freeWindows = useMemo(() => getFreeWindows(
+  const agenda = [...schedule, ...taskBlocks].sort((a, b) => a.startMin - b.startMin);
+  const freeWindows = getFreeWindows(
     data.settings?.workStartMin ?? 480,
     data.settings?.workEndMin ?? 1320,
     agenda,
-  ), [agenda, data.settings]);
+  );
   const nextEvent = agenda.find((event) => event.endMin > nowMinutes) ?? null;
   const nextIn = nextEvent ? Math.max(0, nextEvent.startMin - nowMinutes) : 0;
 
-  const timelineItems = useMemo(() => {
+  const timelineItems = (() => {
     const items: ({ type: "event"; event: typeof agenda[number] } | { type: "free"; startMin: number; endMin: number })[] = agenda.map((event) => ({ type: "event", event }));
     freeWindows.forEach((window) => items.push({ type: "free", ...window }));
     return items.sort((a, b) => {
@@ -88,9 +99,12 @@ export default function Today() {
       const bStart = b.type === "event" ? b.event.startMin : b.startMin;
       return aStart - bStart;
     });
-  }, [agenda, freeWindows]);
+  })();
 
   const todayTasks = data.tasks.filter((task) => task.status !== "done" && (task.due === today || task.isMit));
+  const weekEnd = addCalendarDays(today, 7);
+  const plannedTaskIds = new Set(data.scheduledBlocks.filter(block => !block.isDeleted).map(block => block.taskId));
+  const upcomingUnplanned = data.tasks.filter(task => task.status !== "done" && !task.parentId && !task.scheduleItemId && !!task.due && task.due >= today && task.due <= weekEnd && !plannedTaskIds.has(task.id)).sort((a,b) => (a.due ?? "").localeCompare(b.due ?? "") || b.importance-a.importance);
   const mitTasks = data.tasks.filter((task) => task.isMit && (task.due === today || task.status !== "done")).slice(0, 3);
   const completedMit = mitTasks.filter((task) => task.status === "done").length;
   const overdue = data.tasks.filter((task) => task.status !== "done" && task.due && task.due < today);
@@ -98,15 +112,18 @@ export default function Today() {
   const spentToday = todayTransactions.filter((transaction) => transaction.kind === "expense").reduce((sum, transaction) => sum + transaction.amount, 0);
   const monthPrefix = today.slice(0, 7);
   const spentMonth = data.transactions.filter((transaction) => transaction.kind === "expense" && localDayKey(transaction.happenedAt).startsWith(monthPrefix)).reduce((sum, transaction) => sum + transaction.amount, 0);
+  const mandatoryPayments = data.recurringBills.filter(bill => bill.currency === normalizeCurrency(data.settings?.currency) && bill.paidThrough !== monthPrefix).reduce((sum, bill) => sum + bill.amount, 0);
   
-  const safeSpend = safeToSpendToday({
+  const safeMonthlySpend = safeToSpendToday({
     monthlyLimit: data.settings?.monthlyLimit ?? 0,
     spentThisMonth: spentMonth,
-    mandatoryPayments: 0,
-    savingsContributions: 0,
+    mandatoryPayments,
+    savingsContributions: data.settings?.monthlySavings ?? 0,
     cushion: data.settings?.cushion ?? 0,
     daysRemaining: daysLeftInMonth(today),
   });
+  const dailyRoom = data.settings?.dailyLimit ? Math.max(0, data.settings.dailyLimit - spentToday) : Number.POSITIVE_INFINITY;
+  const safeSpend = data.settings?.monthlyLimit || data.settings?.dailyLimit ? Math.min(data.settings?.monthlyLimit ? safeMonthlySpend : Number.POSITIVE_INFINITY, dailyRoom) : 0;
 
   const focusMinutes = data.timeLogs.filter((log) => localDayKey(log.start) === today).reduce((sum, log) => sum + log.minutes, 0);
   const goalMinutes = data.projects.reduce((sum, project) => sum + project.dailyMinutesGoal, 0);
@@ -134,6 +151,53 @@ export default function Today() {
         <button className="button button-primary" type="button" onClick={() => openQuickAdd("task")}><Plus size={18} />Новая задача</button>
         <button className="button button-ghost" type="button" onClick={() => navigate("/projects")}><Timer size={18} />{data.activeTimer ? "Открыть таймер" : "Старт таймера"}</button>
       </div>
+
+        <section className="card today-timeline">
+          <div className="section-title" style={{ marginTop: 0 }}>
+            <div><p className="eyebrow">Ритм дня</p><h2>Лента и свободные окна</h2></div>
+            <button className="text-button" type="button" onClick={() => navigate("/schedule")}>Расписание</button>
+          </div>
+          <div className="timeline">
+            {timelineItems.length === 0 && <div className="empty-state"><CalendarDays size={28} /><strong>День пока пуст</strong><p>Добавьте постоянное расписание или запланируйте этап проекта.</p></div>}
+            {timelineItems.map((item, index) => {
+              const start = item.type === "event" ? item.event.startMin : item.startMin;
+              const end = item.type === "event" ? item.event.endMin : item.endMin;
+              const showNow = nowMinutes >= start && nowMinutes < end;
+              return (
+                <div key={item.type === "event" ? item.event.id : `free-${item.startMin}`}>
+                  {showNow && <div className="now-line">СЕЙЧАС · {minutesToTime(nowMinutes)}</div>}
+                  <div className="timeline-row">
+                    <div className="timeline-time">{minutesToTime(start)}</div>
+                    {item.type === "event" ? (
+                      <button className={`timeline-event ${item.event.fixed ? "fixed" : ""}`} type="button" onClick={() => navigate(item.event.fixed ? "/schedule" : "/tasks")}>
+                        <strong>{item.event.title}</strong>
+                        <span>{minutesToTime(end)} · {formatDuration(end - start)}{item.event.location ? ` · ${item.event.location}` : ""}</span>
+                        {item.event.linkedTasks.map(task => <small className={`timeline-subtask ${task.parentId ? "nested" : ""}`} key={task.id}>{task.parentId ? "·" : "↳"} {task.title}</small>)}
+                        {item.event.fixed ? <LockKeyhole className="dot" size={13} style={{ background: "none" }} /> : <span className="dot" style={{ background: "var(--cat-personal)" }} />}
+                      </button>
+                    ) : (
+                      <div className="free-window">
+                        <span>Свободно {formatDuration(end - start)}</span>
+                        <button className="text-button" type="button" onClick={() => openQuickAdd("task")}>Заполнить <ArrowRight size={13} /></button>
+                      </div>
+                    )}
+                  </div>
+                  {index === timelineItems.length - 1 && nowMinutes >= end && <div className="now-line">СЕЙЧАС · {minutesToTime(nowMinutes)}</div>}
+                </div>
+              );
+            })}
+          </div>
+          {data.scheduledBlocks.length > 0 && (
+            <DailyPlanner data={data} mode="reflow" />
+          )}
+        </section>
+
+
+      {upcomingUnplanned.length > 0 && <section className="card" style={{ marginBottom: 14 }}>
+        <div className="section-title" style={{ marginTop: 0 }}><div><p className="eyebrow">Ближайшие 7 дней</p><h2>Задачи без времени в расписании</h2></div><span className="badge">{upcomingUnplanned.length}</span></div>
+        <p className="small muted">Срок уже указан. Распределите оценённое время по свободным окнам до дедлайна.</p>
+        <div className="plain-list">{upcomingUnplanned.slice(0, 6).map(task => <div className="list-row" key={task.id}><Clock3 size={17} color="var(--accent)"/><div className="list-row-main"><strong>{task.title}</strong><span>{data.projects.find(project => project.id === task.projectId)?.name ?? "Личная задача"} · срок {task.due} · {formatDuration(task.estimateMin)}</span></div><button className="button button-ghost button-small" type="button" disabled={scheduleTask.isPending} onClick={() => scheduleTask.mutate({ taskId: task.id, startDate: today, endDate: task.due! })}>Распределить</button></div>)}</div>
+      </section>}
 
       <div className="dashboard-grid stagger">
         <section className="card dark-card span-7">
@@ -178,7 +242,7 @@ export default function Today() {
           <section className="card metric-card">
             <WalletCards className="icon" size={19} />
             <p className="card-label">Безопасно потратить</p>
-            <p className="card-value number">{data.settings?.monthlyLimit ? formatMoney(safeSpend, data.settings?.currency) : "Бюджет не задан"}</p>
+            <p className="card-value number">{data.settings?.monthlyLimit || data.settings?.dailyLimit ? formatMoney(safeSpend, data.settings?.currency) : "Бюджет не задан"}</p>
             <p className="metric-footer">Сегодня уже {formatMoney(spentToday, data.settings?.currency)}</p>
           </section>
           <section className="card metric-card">
@@ -194,45 +258,6 @@ export default function Today() {
             <p className="metric-footer">{data.activeTimer ? "Таймер работает сейчас" : "Новая сессия — в проектах"}</p>
           </section>
         </div>
-
-        <section className="card today-timeline">
-          <div className="section-title" style={{ marginTop: 0 }}>
-            <div><p className="eyebrow">Ритм дня</p><h2>Лента и свободные окна</h2></div>
-            <button className="text-button" type="button" onClick={() => navigate("/schedule")}>Расписание</button>
-          </div>
-          <div className="timeline">
-            {timelineItems.length === 0 && <div className="empty-state"><CalendarDays size={28} /><strong>День пока пуст</strong><p>Добавьте постоянное расписание или запланируйте этап проекта.</p></div>}
-            {timelineItems.map((item, index) => {
-              const start = item.type === "event" ? item.event.startMin : item.startMin;
-              const end = item.type === "event" ? item.event.endMin : item.endMin;
-              const showNow = nowMinutes >= start && nowMinutes < end;
-              return (
-                <div key={item.type === "event" ? item.event.id : `free-${item.startMin}`}>
-                  {showNow && <div className="now-line">СЕЙЧАС · {minutesToTime(nowMinutes)}</div>}
-                  <div className="timeline-row">
-                    <div className="timeline-time">{minutesToTime(start)}</div>
-                    {item.type === "event" ? (
-                      <button className={`timeline-event ${item.event.fixed ? "fixed" : ""}`} type="button" onClick={() => navigate(item.event.fixed ? "/schedule" : "/tasks")}>
-                        <strong>{item.event.title}</strong>
-                        <span>{minutesToTime(end)} · {formatDuration(end - start)}{item.event.location ? ` · ${item.event.location}` : ""}</span>
-                        {item.event.fixed ? <LockKeyhole className="dot" size={13} style={{ background: "none" }} /> : <span className="dot" style={{ background: "var(--cat-personal)" }} />}
-                      </button>
-                    ) : (
-                      <div className="free-window">
-                        <span>Свободно {formatDuration(end - start)}</span>
-                        <button className="text-button" type="button" onClick={() => openQuickAdd("task")}>Заполнить <ArrowRight size={13} /></button>
-                      </div>
-                    )}
-                  </div>
-                  {index === timelineItems.length - 1 && nowMinutes >= end && <div className="now-line">СЕЙЧАС · {minutesToTime(nowMinutes)}</div>}
-                </div>
-              );
-            })}
-          </div>
-          {data.scheduledBlocks.length > 0 && (
-            <DailyPlanner data={data} mode="reflow" />
-          )}
-        </section>
 
         <div className="today-side">
           <section className="card">
