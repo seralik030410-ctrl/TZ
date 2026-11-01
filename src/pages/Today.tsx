@@ -160,7 +160,7 @@ export default function Today() {
       const delta = daySwipe(event.changedTouches[0].clientX - start.x, event.changedTouches[0].clientY - start.y, Date.now() - start.at);
       if (delta) moveDay(delta);
     }}>
-      <nav className="action-row" aria-label="Переключение дня" style={{ marginBottom: 16 }}>
+      <nav className="day-navigator" aria-label="Переключение дня">
         <button className="icon-button" aria-label="Предыдущий день" onClick={() => moveDay(-1)}><ChevronLeft size={22} /></button>
         <strong aria-live="polite">{new Intl.DateTimeFormat("ru-RU", { weekday: "short", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${today}T12:00:00Z`))}</strong>
         <button className="icon-button" aria-label="Следующий день" onClick={() => moveDay(1)}><ChevronRight size={22} /></button>

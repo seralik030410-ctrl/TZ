@@ -505,6 +505,13 @@ export const plannerRouter = createRouter({
   }),
 
   schedule: createRouter({
+    linkProject: protectedQuery.input(idInput.extend({ projectId: z.string().uuid().nullable() })).mutation(async ({ input }) => {
+      if (input.projectId) await requireProject(getDb(), input.projectId);
+      const [event] = await getDb().select().from(scheduleItems).where(and(privateScope(scheduleItems), eq(scheduleItems.id, input.id), eq(scheduleItems.isDeleted, false)));
+      if (!event) throw new TRPCError({ code: "NOT_FOUND", message: "Занятие не найдено" });
+      await getDb().update(scheduleItems).set({ projectId: input.projectId, updatedAt: new Date() }).where(and(privateScope(scheduleItems), eq(scheduleItems.id, input.id)));
+      return { ok: true };
+    }),
     add: protectedQuery
       .input(z.object({
         title: z.string().trim().min(1).max(180),

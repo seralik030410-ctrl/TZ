@@ -715,5 +715,9 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
 .project-stage .project-tree-children > div { display: grid; grid-template-columns: 7px minmax(0, 1fr); align-items: start; }
 .project-stage .project-tree-task, .project-stage .project-tree-children > div { grid-template-columns: 30px minmax(0, 1fr); }
 .project-stage .task-check { margin-top: 10px; }
+.event-checklist .event-add-task { display: inline-flex; align-items: center; gap: 6px; text-align: left; }
+.day-navigator { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; text-align: center; }
+.day-navigator > strong { max-width: calc(100% - 104px); overflow-wrap: anywhere; }
+.day-navigator > button { flex: 0 0 auto; }
 .project-stage .project-dependency { margin: -4px 0 8px; line-height: 1.5; }
 .project-stage > .muted { display: block; padding: 10px 0 2px; }

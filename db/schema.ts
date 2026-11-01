@@ -103,6 +103,7 @@ export const tasks = mysqlTable("tasks", {
 });
 
 export const scheduleItems = mysqlTable("schedule_items", {
+  projectId: varchar("project_id", { length: 36 }),
   id: varchar("id", { length: 36 }).primaryKey(),
   title: varchar("title", { length: 180 }).notNull(),
   kind: varchar("kind", { length: 24 }).notNull(),

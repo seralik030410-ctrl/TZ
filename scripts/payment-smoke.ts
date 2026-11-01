@@ -119,6 +119,12 @@ try {
   assert.equal(completedShared.status, "done");
   await call("planner.tasks.update", { id: sharedTask, status: "plan" });
   console.log("PASS friend completes shared task and owner reopens it");
+  const [[eventToLink]] = await db.query<(RowDataPacket & { id: string })[]>("SELECT id FROM schedule_items WHERE owner_id=? AND title='Запись в Корео' AND is_deleted=0 LIMIT 1", [owner]);
+  await call("planner.schedule.linkProject", { id: eventToLink.id, projectId: sharedProject });
+  const [[linkedProject]] = await db.query<(RowDataPacket & { project_id: string })[]>("SELECT project_id FROM schedule_items WHERE id=?", [eventToLink.id]);
+  assert.equal(linkedProject.project_id, sharedProject);
+  await assert.rejects(() => call("planner.schedule.linkProject", { id: eventToLink.id, projectId: sharedProject }, false, friend.cookie));
+  console.log("PASS shared project linked to owner event, friend cannot change owner's event");
   const billId = randomUUID();
   await call("planner.bills.create", { id: billId, name: "Monthly internet smoke", amount: 15000, dueDay: 10, currency: "TJS" });
   await Promise.all([call("planner.bills.markPaid", { id: billId }), call("planner.bills.markPaid", { id: billId })]);

@@ -9,9 +9,13 @@ import type { PlannerData } from "@/lib/planner";
 export function ScheduleTasks({ data, eventId, day }: { data: PlannerData; eventId: string; day: string }) {
   const [open, setOpen] = useState(false);
   const utils = trpc.useUtils();
+  const event = data.schedule.find(item => item.id === eventId);
+  const [chooseProject, setChooseProject] = useState(false);
+  const link = trpc.planner.schedule.linkProject.useMutation({ onSuccess: async () => { await utils.planner.bootstrap.invalidate(); setChooseProject(false); }, onError: error => toast.error(error.message) });
   const update = trpc.planner.tasks.update.useMutation({ onSuccess: () => utils.planner.bootstrap.invalidate(), onError: e => toast.error(e.message) });
-  const roots = data.tasks.filter(t => t.scheduleItemId === eventId && !t.parentId && (!t.due || t.due === day));
+  const roots = data.tasks.filter(t => !t.parentId && ((t.scheduleItemId === eventId && (!t.due || t.due === day)) || (!!event?.projectId && t.projectId === event.projectId && (!t.due || t.due === day))));
   return <div className="event-checklist">
+    {event?.projectId && <p className="small muted">{data.projects.find(p => p.id === event.projectId)?.name ?? "Проект"} · отмечайте выполненные задачи здесь</p>}
     {roots.map(root => <div className="event-checklist-group" key={root.id}>
       {[root, ...data.tasks.filter(t => t.parentId === root.id)].map(t => <div className={`event-checklist-row ${t.parentId ? "is-child" : ""}`} key={t.id}>
         <button type="button" className={`task-check ${t.status === "done" ? "checked" : ""}`} disabled={update.isPending} aria-label={`${t.status === "done" ? "Вернуть" : "Выполнить"} ${t.title}`} onClick={() => update.mutate({ id: t.id, status: t.status === "done" ? "plan" : "done" })}>{t.status === "done" && <Check size={14} />}</button>
@@ -19,6 +23,8 @@ export function ScheduleTasks({ data, eventId, day }: { data: PlannerData; event
       </div>)}
     </div>)}
     <button type="button" className="text-button event-add-task" onClick={() => setOpen(true)}><Plus size={14} />Задача внутри занятия</button>
+    <button type="button" className="text-button event-add-task" onClick={() => setChooseProject(!chooseProject)}>{event?.projectId ? "Изменить проект" : "Показать задачи проекта"}</button>
+    {chooseProject && <div className="field"><label htmlFor={`event-project-${eventId}`}>Задачи внутри этого занятия</label><AppSelect id={`event-project-${eventId}`} value={event?.projectId ?? ""} disabled={link.isPending} onChange={e => link.mutate({ id: eventId, projectId: e.target.value || null })}><option value="">Без проекта</option>{data.projects.map(p => <option key={p.id} value={p.id}>{p.name}{p.workspaceId ? " · Общее" : ""}</option>)}</AppSelect></div>}
     {open && <EventTaskDialog data={data} eventId={eventId} day={day} onClose={() => setOpen(false)} />}
   </div>;
 }
