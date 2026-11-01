@@ -15,10 +15,11 @@ for (const table of tables) {
   const filter = filters[table] ?? '1=1';
   statements.push(`INSERT IGNORE INTO personal_cleanup_archive(batch,table_name,record_id,owner_id) SELECT ${batch},'${table}',r.id,r.owner_id FROM ${table} r WHERE r.owner_id=${owner} AND r.is_deleted=0 AND (${filter})`);
 }
-for (const table of tables) statements.push(`UPDATE ${table} r JOIN personal_cleanup_archive a ON a.record_id=r.id AND a.owner_id=r.owner_id AND a.table_name='${table}' AND a.batch=${batch} SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL`);
+for (const table of tables) statements.push(`UPDATE ${table} r JOIN personal_cleanup_archive a ON BINARY a.record_id=BINARY r.id AND BINARY a.owner_id=BINARY r.owner_id AND a.table_name='${table}' AND a.batch=${batch} SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL`);
 statements.push(`UPDATE settings SET task_epoch=task_epoch+1,updated_at=CURRENT_TIMESTAMP WHERE owner_id=${owner}`);
 writeFileSync('db/migrations/0016_study_only_archive.sql', statements.join(';\n--> statement-breakpoint\n')+';\n');
 const path='db/migrations/meta/_journal.json';
 const journal=JSON.parse(readFileSync(path,'utf8'));
 if (!journal.entries.some(e=>e.idx===16)) journal.entries.push({idx:16,version:'5',when:1793500000008,tag:'0016_study_only_archive',breakpoints:true});
 writeFileSync(path,JSON.stringify(journal,null,2)+'\n');
+

@@ -8,6 +8,7 @@ const env={...process.env,DATABASE_URL:`mysql://root:ritm_local_test@127.0.0.1:3
 try {
  await db.query(`CREATE DATABASE ${name} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`); await db.query(`USE ${name}`);
  execFileSync(process.execPath,['scripts/migrate.mjs'],{env,stdio:'pipe'});
+ await db.query('ALTER TABLE personal_cleanup_archive CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci');
  const owner='00000000-0000-4000-8000-000000000001';
  await db.query("INSERT INTO transactions(id,owner_id,kind,amount) VALUES ('personal',?,'income',100),('friend','friend','income',200)",[owner]);
  await db.query("INSERT INTO tasks(id,owner_id,title,workspace_id) VALUES ('personal',?,'private',NULL),('shared',?,'shared','workspace')",[owner,owner]);

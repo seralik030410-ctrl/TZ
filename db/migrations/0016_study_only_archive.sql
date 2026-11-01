@@ -50,54 +50,54 @@ INSERT IGNORE INTO personal_cleanup_archive(batch,table_name,record_id,owner_id)
 --> statement-breakpoint
 INSERT IGNORE INTO personal_cleanup_archive(batch,table_name,record_id,owner_id) SELECT 'study-only-2026-11-01','gold_overrides',r.id,r.owner_id FROM gold_overrides r WHERE r.owner_id='00000000-0000-4000-8000-000000000001' AND r.is_deleted=0 AND (1=1);
 --> statement-breakpoint
-UPDATE scheduled_blocks r JOIN personal_cleanup_archive a ON a.record_id=r.id AND a.owner_id=r.owner_id AND a.table_name='scheduled_blocks' AND a.batch='study-only-2026-11-01' SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL;
+UPDATE scheduled_blocks r JOIN personal_cleanup_archive a ON BINARY a.record_id=BINARY r.id AND BINARY a.owner_id=BINARY r.owner_id AND a.table_name='scheduled_blocks' AND a.batch='study-only-2026-11-01' SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL;
 --> statement-breakpoint
-UPDATE tasks r JOIN personal_cleanup_archive a ON a.record_id=r.id AND a.owner_id=r.owner_id AND a.table_name='tasks' AND a.batch='study-only-2026-11-01' SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL;
+UPDATE tasks r JOIN personal_cleanup_archive a ON BINARY a.record_id=BINARY r.id AND BINARY a.owner_id=BINARY r.owner_id AND a.table_name='tasks' AND a.batch='study-only-2026-11-01' SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL;
 --> statement-breakpoint
-UPDATE stages r JOIN personal_cleanup_archive a ON a.record_id=r.id AND a.owner_id=r.owner_id AND a.table_name='stages' AND a.batch='study-only-2026-11-01' SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL;
+UPDATE stages r JOIN personal_cleanup_archive a ON BINARY a.record_id=BINARY r.id AND BINARY a.owner_id=BINARY r.owner_id AND a.table_name='stages' AND a.batch='study-only-2026-11-01' SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL;
 --> statement-breakpoint
-UPDATE projects r JOIN personal_cleanup_archive a ON a.record_id=r.id AND a.owner_id=r.owner_id AND a.table_name='projects' AND a.batch='study-only-2026-11-01' SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL;
+UPDATE projects r JOIN personal_cleanup_archive a ON BINARY a.record_id=BINARY r.id AND BINARY a.owner_id=BINARY r.owner_id AND a.table_name='projects' AND a.batch='study-only-2026-11-01' SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL;
 --> statement-breakpoint
-UPDATE schedule_exceptions r JOIN personal_cleanup_archive a ON a.record_id=r.id AND a.owner_id=r.owner_id AND a.table_name='schedule_exceptions' AND a.batch='study-only-2026-11-01' SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL;
+UPDATE schedule_exceptions r JOIN personal_cleanup_archive a ON BINARY a.record_id=BINARY r.id AND BINARY a.owner_id=BINARY r.owner_id AND a.table_name='schedule_exceptions' AND a.batch='study-only-2026-11-01' SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL;
 --> statement-breakpoint
-UPDATE schedule_items r JOIN personal_cleanup_archive a ON a.record_id=r.id AND a.owner_id=r.owner_id AND a.table_name='schedule_items' AND a.batch='study-only-2026-11-01' SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL;
+UPDATE schedule_items r JOIN personal_cleanup_archive a ON BINARY a.record_id=BINARY r.id AND BINARY a.owner_id=BINARY r.owner_id AND a.table_name='schedule_items' AND a.batch='study-only-2026-11-01' SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL;
 --> statement-breakpoint
-UPDATE time_logs r JOIN personal_cleanup_archive a ON a.record_id=r.id AND a.owner_id=r.owner_id AND a.table_name='time_logs' AND a.batch='study-only-2026-11-01' SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL;
+UPDATE time_logs r JOIN personal_cleanup_archive a ON BINARY a.record_id=BINARY r.id AND BINARY a.owner_id=BINARY r.owner_id AND a.table_name='time_logs' AND a.batch='study-only-2026-11-01' SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL;
 --> statement-breakpoint
-UPDATE transactions r JOIN personal_cleanup_archive a ON a.record_id=r.id AND a.owner_id=r.owner_id AND a.table_name='transactions' AND a.batch='study-only-2026-11-01' SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL;
+UPDATE transactions r JOIN personal_cleanup_archive a ON BINARY a.record_id=BINARY r.id AND BINARY a.owner_id=BINARY r.owner_id AND a.table_name='transactions' AND a.batch='study-only-2026-11-01' SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL;
 --> statement-breakpoint
-UPDATE recurring_bills r JOIN personal_cleanup_archive a ON a.record_id=r.id AND a.owner_id=r.owner_id AND a.table_name='recurring_bills' AND a.batch='study-only-2026-11-01' SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL;
+UPDATE recurring_bills r JOIN personal_cleanup_archive a ON BINARY a.record_id=BINARY r.id AND BINARY a.owner_id=BINARY r.owner_id AND a.table_name='recurring_bills' AND a.batch='study-only-2026-11-01' SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL;
 --> statement-breakpoint
-UPDATE journal_entries r JOIN personal_cleanup_archive a ON a.record_id=r.id AND a.owner_id=r.owner_id AND a.table_name='journal_entries' AND a.batch='study-only-2026-11-01' SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL;
+UPDATE journal_entries r JOIN personal_cleanup_archive a ON BINARY a.record_id=BINARY r.id AND BINARY a.owner_id=BINARY r.owner_id AND a.table_name='journal_entries' AND a.batch='study-only-2026-11-01' SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL;
 --> statement-breakpoint
-UPDATE task_templates r JOIN personal_cleanup_archive a ON a.record_id=r.id AND a.owner_id=r.owner_id AND a.table_name='task_templates' AND a.batch='study-only-2026-11-01' SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL;
+UPDATE task_templates r JOIN personal_cleanup_archive a ON BINARY a.record_id=BINARY r.id AND BINARY a.owner_id=BINARY r.owner_id AND a.table_name='task_templates' AND a.batch='study-only-2026-11-01' SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL;
 --> statement-breakpoint
-UPDATE reflow_log r JOIN personal_cleanup_archive a ON a.record_id=r.id AND a.owner_id=r.owner_id AND a.table_name='reflow_log' AND a.batch='study-only-2026-11-01' SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL;
+UPDATE reflow_log r JOIN personal_cleanup_archive a ON BINARY a.record_id=BINARY r.id AND BINARY a.owner_id=BINARY r.owner_id AND a.table_name='reflow_log' AND a.batch='study-only-2026-11-01' SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL;
 --> statement-breakpoint
-UPDATE payments r JOIN personal_cleanup_archive a ON a.record_id=r.id AND a.owner_id=r.owner_id AND a.table_name='payments' AND a.batch='study-only-2026-11-01' SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL;
+UPDATE payments r JOIN personal_cleanup_archive a ON BINARY a.record_id=BINARY r.id AND BINARY a.owner_id=BINARY r.owner_id AND a.table_name='payments' AND a.batch='study-only-2026-11-01' SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL;
 --> statement-breakpoint
-UPDATE deal_checklist r JOIN personal_cleanup_archive a ON a.record_id=r.id AND a.owner_id=r.owner_id AND a.table_name='deal_checklist' AND a.batch='study-only-2026-11-01' SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL;
+UPDATE deal_checklist r JOIN personal_cleanup_archive a ON BINARY a.record_id=BINARY r.id AND BINARY a.owner_id=BINARY r.owner_id AND a.table_name='deal_checklist' AND a.batch='study-only-2026-11-01' SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL;
 --> statement-breakpoint
-UPDATE visas r JOIN personal_cleanup_archive a ON a.record_id=r.id AND a.owner_id=r.owner_id AND a.table_name='visas' AND a.batch='study-only-2026-11-01' SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL;
+UPDATE visas r JOIN personal_cleanup_archive a ON BINARY a.record_id=BINARY r.id AND BINARY a.owner_id=BINARY r.owner_id AND a.table_name='visas' AND a.batch='study-only-2026-11-01' SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL;
 --> statement-breakpoint
-UPDATE flights r JOIN personal_cleanup_archive a ON a.record_id=r.id AND a.owner_id=r.owner_id AND a.table_name='flights' AND a.batch='study-only-2026-11-01' SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL;
+UPDATE flights r JOIN personal_cleanup_archive a ON BINARY a.record_id=BINARY r.id AND BINARY a.owner_id=BINARY r.owner_id AND a.table_name='flights' AND a.batch='study-only-2026-11-01' SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL;
 --> statement-breakpoint
-UPDATE deals r JOIN personal_cleanup_archive a ON a.record_id=r.id AND a.owner_id=r.owner_id AND a.table_name='deals' AND a.batch='study-only-2026-11-01' SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL;
+UPDATE deals r JOIN personal_cleanup_archive a ON BINARY a.record_id=BINARY r.id AND BINARY a.owner_id=BINARY r.owner_id AND a.table_name='deals' AND a.batch='study-only-2026-11-01' SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL;
 --> statement-breakpoint
-UPDATE clients r JOIN personal_cleanup_archive a ON a.record_id=r.id AND a.owner_id=r.owner_id AND a.table_name='clients' AND a.batch='study-only-2026-11-01' SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL;
+UPDATE clients r JOIN personal_cleanup_archive a ON BINARY a.record_id=BINARY r.id AND BINARY a.owner_id=BINARY r.owner_id AND a.table_name='clients' AND a.batch='study-only-2026-11-01' SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL;
 --> statement-breakpoint
-UPDATE debt_payments r JOIN personal_cleanup_archive a ON a.record_id=r.id AND a.owner_id=r.owner_id AND a.table_name='debt_payments' AND a.batch='study-only-2026-11-01' SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL;
+UPDATE debt_payments r JOIN personal_cleanup_archive a ON BINARY a.record_id=BINARY r.id AND BINARY a.owner_id=BINARY r.owner_id AND a.table_name='debt_payments' AND a.batch='study-only-2026-11-01' SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL;
 --> statement-breakpoint
-UPDATE debts r JOIN personal_cleanup_archive a ON a.record_id=r.id AND a.owner_id=r.owner_id AND a.table_name='debts' AND a.batch='study-only-2026-11-01' SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL;
+UPDATE debts r JOIN personal_cleanup_archive a ON BINARY a.record_id=BINARY r.id AND BINARY a.owner_id=BINARY r.owner_id AND a.table_name='debts' AND a.batch='study-only-2026-11-01' SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL;
 --> statement-breakpoint
-UPDATE gold_trades r JOIN personal_cleanup_archive a ON a.record_id=r.id AND a.owner_id=r.owner_id AND a.table_name='gold_trades' AND a.batch='study-only-2026-11-01' SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL;
+UPDATE gold_trades r JOIN personal_cleanup_archive a ON BINARY a.record_id=BINARY r.id AND BINARY a.owner_id=BINARY r.owner_id AND a.table_name='gold_trades' AND a.batch='study-only-2026-11-01' SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL;
 --> statement-breakpoint
-UPDATE gold_transfers r JOIN personal_cleanup_archive a ON a.record_id=r.id AND a.owner_id=r.owner_id AND a.table_name='gold_transfers' AND a.batch='study-only-2026-11-01' SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL;
+UPDATE gold_transfers r JOIN personal_cleanup_archive a ON BINARY a.record_id=BINARY r.id AND BINARY a.owner_id=BINARY r.owner_id AND a.table_name='gold_transfers' AND a.batch='study-only-2026-11-01' SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL;
 --> statement-breakpoint
-UPDATE gold_balance r JOIN personal_cleanup_archive a ON a.record_id=r.id AND a.owner_id=r.owner_id AND a.table_name='gold_balance' AND a.batch='study-only-2026-11-01' SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL;
+UPDATE gold_balance r JOIN personal_cleanup_archive a ON BINARY a.record_id=BINARY r.id AND BINARY a.owner_id=BINARY r.owner_id AND a.table_name='gold_balance' AND a.batch='study-only-2026-11-01' SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL;
 --> statement-breakpoint
-UPDATE gold_rules r JOIN personal_cleanup_archive a ON a.record_id=r.id AND a.owner_id=r.owner_id AND a.table_name='gold_rules' AND a.batch='study-only-2026-11-01' SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL;
+UPDATE gold_rules r JOIN personal_cleanup_archive a ON BINARY a.record_id=BINARY r.id AND BINARY a.owner_id=BINARY r.owner_id AND a.table_name='gold_rules' AND a.batch='study-only-2026-11-01' SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL;
 --> statement-breakpoint
-UPDATE gold_overrides r JOIN personal_cleanup_archive a ON a.record_id=r.id AND a.owner_id=r.owner_id AND a.table_name='gold_overrides' AND a.batch='study-only-2026-11-01' SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL;
+UPDATE gold_overrides r JOIN personal_cleanup_archive a ON BINARY a.record_id=BINARY r.id AND BINARY a.owner_id=BINARY r.owner_id AND a.table_name='gold_overrides' AND a.batch='study-only-2026-11-01' SET r.is_deleted=1,r.updated_at=a.archived_at WHERE a.restored_at IS NULL;
 --> statement-breakpoint
 UPDATE settings SET task_epoch=task_epoch+1,updated_at=CURRENT_TIMESTAMP WHERE owner_id='00000000-0000-4000-8000-000000000001';
