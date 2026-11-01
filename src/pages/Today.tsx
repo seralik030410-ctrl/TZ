@@ -2,7 +2,9 @@ import { ScheduleTasks } from "@/components/ScheduleTasks";
 import { remainingMinutes, isStandaloneTask } from "@contracts/plannerState";
 import { scheduleForDay } from "@contracts/schedule";
 import { minutesInZone, daysLeftInMonth, normalizeCurrency } from "@contracts/shared";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { daySwipe } from "@contracts/daySwipe";
+import { dayInZone } from "@contracts/shared";
 import { toast } from "sonner";
 import { trpc } from "@/providers/trpc";
 import { ModuleAttention } from "@/components/ModuleAttention";
@@ -13,6 +15,8 @@ import {
   ArrowRight,
   BookOpen,
   CalendarDays,
+  ChevronLeft,
+  ChevronRight,
   Check,
   CheckCircle2,
   Clock3,
@@ -41,8 +45,13 @@ export default function Today() {
   const data = { ...context.data, transactions: context.data.transactions.filter(t => t.currency === normalizeCurrency(context.data.settings?.currency)) };
   const navigate = useNavigate();
   const [now, setNow] = useState(new Date());
-  const today = localDayKey();
-  const nowMinutes = minutesInZone(now, data.settings?.timezone);
+  const actualToday = dayInZone(now, data.settings?.timezone ?? "Asia/Dushanbe");
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const today = selectedDay ?? actualToday;
+  const isToday = today === actualToday;
+  const moveDay = (delta: number) => setSelectedDay(addCalendarDays(today, delta));
+  const touch = useRef<{ x: number; y: number; at: number } | null>(null);
+  const nowMinutes = isToday ? minutesInZone(now, data.settings?.timezone) : today < actualToday ? 1440 : 0;
   const utils = trpc.useUtils();
   const scheduleTask = trpc.planner.planning.scheduleTask.useMutation({
     onSuccess: async result => { await utils.planner.bootstrap.invalidate(); toast.success(result.remainingMin ? `Распределено ${formatDuration(result.minutes)}, ещё ${formatDuration(result.remainingMin)} не поместилось` : `В расписание добавлено ${formatDuration(result.minutes)}`); },
@@ -103,10 +112,10 @@ export default function Today() {
     });
   })();
 
-  const todayTasks = data.tasks.filter((task) => task.status !== "done" && (task.due === today || task.isMit));
+  const todayTasks = data.tasks.filter((task) => task.status !== "done" && (task.due === today || (isToday && task.isMit && !task.due)));
   const weekEnd = addCalendarDays(today, 7);
   const upcomingUnplanned = data.tasks.filter(task => isStandaloneTask(task) && !!task.due && task.due <= weekEnd && remainingMinutes(task, data.scheduledBlocks) > 0).sort((a,b) => (a.due ?? "").localeCompare(b.due ?? "") || b.importance-a.importance);
-  const mitTasks = data.tasks.filter((task) => task.isMit && (task.due === today || task.status !== "done")).slice(0, 3);
+  const mitTasks = data.tasks.filter((task) => task.isMit && (task.due === today || (isToday && !task.due && task.status !== "done"))).slice(0, 3);
   const completedMit = mitTasks.filter((task) => task.status === "done").length;
   const overdue = data.tasks.filter((task) => task.status !== "done" && task.due && task.due < today);
   const todayTransactions = data.transactions.filter((transaction) => localDayKey(transaction.happenedAt) === today);
@@ -138,12 +147,27 @@ export default function Today() {
   ].sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 4);
 
   return (
-    <div className="page">
+    <div className="page" style={{ touchAction: "pan-y pinch-zoom" }} onTouchStart={event => {
+      touch.current = null;
+      if (event.touches.length !== 1 || (event.target as HTMLElement).closest("button,a,input,textarea,select,[role=button],[contenteditable=true],[role=dialog]")) return;
+      touch.current = { x: event.touches[0].clientX, y: event.touches[0].clientY, at: Date.now() };
+    }} onTouchCancel={() => { touch.current = null; }} onTouchEnd={event => {
+      const start = touch.current; touch.current = null;
+      if (!start || event.touches.length || !event.changedTouches[0]) return;
+      const delta = daySwipe(event.changedTouches[0].clientX - start.x, event.changedTouches[0].clientY - start.y, Date.now() - start.at);
+      if (delta) moveDay(delta);
+    }}>
+      <nav className="action-row" aria-label="Переключение дня" style={{ marginBottom: 16 }}>
+        <button className="icon-button" aria-label="Предыдущий день" onClick={() => moveDay(-1)}><ChevronLeft size={22} /></button>
+        <strong aria-live="polite">{new Intl.DateTimeFormat("ru-RU", { weekday: "short", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${today}T12:00:00Z`))}</strong>
+        <button className="icon-button" aria-label="Следующий день" onClick={() => moveDay(1)}><ChevronRight size={22} /></button>
+        {!isToday && <button className="button button-ghost button-small" onClick={() => setSelectedDay(null)}>Сегодня</button>}
+      </nav>
       <div className="page-header">
         <div>
-          <p className="eyebrow">{new Intl.DateTimeFormat("ru-RU", { weekday: "long", day: "numeric", month: "long", timeZone: data.settings?.timezone }).format(now)}</p>
+          <p className="eyebrow">{isToday ? "Сегодня" : "Просмотр выбранного дня"}</p>
           <h1>{greeting()}, {data.settings?.name ?? "Алекс"}!</h1>
-          <p className="subtitle">Сегодня {schedule.filter((event) => event.kind === "class").length} пары, {freeWindows.length} окна и {overdue.length + todayTasks.filter((task) => task.due === today).length} дел, требующих внимания.</p>
+          <p className="subtitle">На этот день: {schedule.filter((event) => event.kind === "class").length} пары, {freeWindows.length} окна и {overdue.length + todayTasks.filter((task) => task.due === today).length} дел, требующих внимания.</p>
         </div>
       </div>
 
@@ -158,7 +182,7 @@ export default function Today() {
             {timelineItems.map((item, index) => {
               const start = item.type === "event" ? item.event.startMin : item.startMin;
               const end = item.type === "event" ? item.event.endMin : item.endMin;
-              const showNow = nowMinutes >= start && nowMinutes < end;
+              const showNow = isToday && nowMinutes >= start && nowMinutes < end;
               return (
                 <div key={item.type === "event" ? item.event.id : `free-${item.startMin}`}>
                   {showNow && <div className="now-line">СЕЙЧАС · {minutesToTime(nowMinutes)}</div>}
@@ -179,20 +203,20 @@ export default function Today() {
                       </div>
                     )}
                   </div>
-                  {index === timelineItems.length - 1 && nowMinutes >= end && <div className="now-line">СЕЙЧАС · {minutesToTime(nowMinutes)}</div>}
+                  {isToday && index === timelineItems.length - 1 && nowMinutes >= end && <div className="now-line">СЕЙЧАС · {minutesToTime(nowMinutes)}</div>}
                 </div>
               );
             })}
           </div>
-          {data.scheduledBlocks.length > 0 && (
+          {isToday && data.scheduledBlocks.length > 0 && (
             <DailyPlanner data={data} mode="reflow" />
           )}
         </section>
 
 
       <div className="action-row" style={{ marginBottom: 18 }}>
-        <DailyPlanner data={data} />
-        <CloseDay data={data} />
+        {isToday && <DailyPlanner data={data} />}
+        {isToday && <CloseDay data={data} />}
         <button className="button button-primary" type="button" onClick={() => openQuickAdd("task")}><Plus size={18} />Новая задача</button>
         <button className="button button-ghost" type="button" onClick={() => navigate("/projects")}><Timer size={18} />{data.activeTimer ? "Открыть таймер" : "Старт таймера"}</button>
       </div>
@@ -208,7 +232,7 @@ export default function Today() {
           <p className="eyebrow" style={{ color: "oklch(0.74 0.02 70)" }}>Следующее событие</p>
           {nextEvent ? (
             <>
-              <div className="next-event-time number">{nextIn > 0 ? `через ${formatDuration(nextIn)}` : "сейчас"}</div>
+              <div className="next-event-time number">{!isToday ? minutesToTime(nextEvent.startMin) : nextIn > 0 ? `через ${formatDuration(nextIn)}` : "сейчас"}</div>
               <p className="next-event-name">{nextEvent.title}</p>
               <p className="next-event-meta">{minutesToTime(nextEvent.startMin)}–{minutesToTime(nextEvent.endMin)}{nextEvent.location ? ` · ${nextEvent.location}` : ""}</p>
             </>
@@ -247,7 +271,7 @@ export default function Today() {
             <WalletCards className="icon" size={19} />
             <p className="card-label">Безопасно потратить</p>
             <p className="card-value number">{data.settings?.monthlyLimit || data.settings?.dailyLimit ? formatMoney(safeSpend, data.settings?.currency) : "Бюджет не задан"}</p>
-            <p className="metric-footer">Сегодня уже {formatMoney(spentToday, data.settings?.currency)}</p>
+            <p className="metric-footer">За выбранный день {formatMoney(spentToday, data.settings?.currency)}</p>
           </section>
           <section className="card metric-card">
             <CheckCircle2 className="icon" size={19} />
@@ -257,7 +281,7 @@ export default function Today() {
           </section>
           <section className="card metric-card">
             <Timer className="icon" size={19} />
-            <p className="card-label">Фокус сегодня</p>
+            <p className="card-label">Фокус за день</p>
             <p className="card-value number">{formatDuration(focusMinutes)}</p>
             <p className="metric-footer">{data.activeTimer ? "Таймер работает сейчас" : "Новая сессия — в проектах"}</p>
           </section>
