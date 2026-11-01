@@ -1,6 +1,7 @@
 import { SharedAccess } from "@/components/SharedAccess";
 import { accountStorageKey } from "@/lib/offline";
 import { MonthNavigator } from "@/components/MonthNavigator";
+import { navigateTabs } from "@/lib/tabs";
 import { AppSelect, DateField } from "@/components/FormControls";
 import { useMemo, useState, type FormEvent } from "react";
 import { useOutletContext } from "react-router";
@@ -19,7 +20,7 @@ import { toast } from "sonner";
 import { TaskDragBoard } from "@/components/TaskDragBoard";
 import { TaskInsights } from "@/components/TaskInsights";
 import { RoutineTemplates } from "@/components/Routines";
-import { moduleMutation } from "@/components/ModuleKit";
+import { moduleMutation } from "@/lib/moduleData";
 import { Modal } from "@/components/Modal";
 import { trpc } from "@/providers/trpc";
 import {
@@ -42,6 +43,7 @@ export default function Tasks() {
   const [viewMonth, setViewMonth] = useState<string | null>(null);
   const [view, setView] = useState<TaskView>("list");
   const [filter, setFilter] = useState("active");
+  const [scope, setScope] = useState("all");
   const [projectFilter, setProjectFilter] = useState("all");
   const [editing, setEditing] = useState<Task | null>(null);
   const [lastMove, setLastMove] = useState<string | null>(() => localStorage.getItem(accountStorageKey("ritm-last-task-move")));
@@ -73,6 +75,7 @@ export default function Tasks() {
 
 
   const filtered = useMemo(() => data.tasks.filter((task) => {
+    if (scope === "personal" && task.workspaceId) return false;
     if (viewMonth && !task.due?.startsWith(viewMonth)) return false;
     if (completedDay && (!task.completedAt || localDayKey(task.completedAt) !== completedDay)) return false;
     if (projectFilter !== "all" && task.projectId !== projectFilter) return false;
@@ -81,7 +84,7 @@ export default function Tasks() {
     if (filter === "today" && task.due !== today) return false;
     if (filter === "overdue" && !(task.status !== "done" && task.due && task.due < today)) return false;
     return true;
-  }), [data.tasks, filter, projectFilter, today, completedDay, viewMonth]);
+  }), [data.tasks, scope, filter, projectFilter, today, completedDay, viewMonth]);
 
   const counts = {
     active: data.tasks.filter((task) => task.status !== "done").length,
@@ -97,10 +100,10 @@ export default function Tasks() {
         <button className="button button-primary quick-add-desktop" type="button" onClick={() => openQuickAdd("task")}><Plus size={18} />Новая задача</button>
       </div>
 
-      <div className="segmented" role="tablist" aria-label="Вид задач">
-        <button type="button" className={view === "list" ? "active" : ""} onClick={() => setView("list")} role="tab" aria-selected={view === "list"}>Список</button>
-        <button type="button" className={view === "board" ? "active" : ""} onClick={() => setView("board")} role="tab" aria-selected={view === "board"}>Доска</button>
-        <button type="button" className={view === "matrix" ? "active" : ""} onClick={() => setView("matrix")} role="tab" aria-selected={view === "matrix"}>Матрица</button>
+      <div className="segmented" role="tablist" onKeyDown={navigateTabs} aria-label="Вид задач">
+        <button type="button" className={view === "list" ? "active" : ""} onClick={() => setView("list")} id="tasks-tab-list" aria-controls="tasks-view-panel" role="tab" tabIndex={view === "list" ? 0 : -1} aria-selected={view === "list"}>Список</button>
+        <button type="button" className={view === "board" ? "active" : ""} onClick={() => setView("board")} id="tasks-tab-board" aria-controls="tasks-view-panel" role="tab" tabIndex={view === "board" ? 0 : -1} aria-selected={view === "board"}>Доска</button>
+        <button type="button" className={view === "matrix" ? "active" : ""} onClick={() => setView("matrix")} id="tasks-tab-matrix" aria-controls="tasks-view-panel" role="tab" tabIndex={view === "matrix" ? 0 : -1} aria-selected={view === "matrix"}>Матрица</button>
       </div>
       {<div className="task-actions-toolbar">
         {lastMove && <button className="button button-ghost" onClick={async () => { try { await moduleMutation("planner.tasks.undoReorder", { operationId: lastMove }); setLastMove(null); localStorage.removeItem(accountStorageKey("ritm-last-task-move")); await refresh(); } catch (error) { toast.error((error as Error).message); } }}>Отменить перемещение</button>}
@@ -111,6 +114,7 @@ export default function Tasks() {
 
       <MonthNavigator value={viewMonth} onChange={setViewMonth} />
       <div className="filter-row" aria-label="Фильтры задач">
+        <AppSelect aria-label="Область задач" value={scope} onChange={e => setScope(e.target.value)}><option value="all">Все задачи</option><option value="personal">Личные · общих сохранено: {data.tasks.filter(t => t.workspaceId).length}</option></AppSelect>
         {[
           ["active", `Активные ${counts.active}`],
           ["today", `Сегодня ${counts.today}`],
@@ -123,6 +127,7 @@ export default function Tasks() {
         </AppSelect>
       </div>
 
+      <div id="tasks-view-panel" role="tabpanel" aria-labelledby={`tasks-tab-${view}`}>
       {filtered.length === 0 && (
         <section className="card empty-state"><CheckSquare2 size={32} /><strong>Здесь пока пусто</strong><p>{filter === "done" ? "Выполненные задачи появятся после первой отметки." : "Добавьте одну конкретную задачу — с неё начнётся порядок."}</p><button className="button button-primary" type="button" onClick={() => openQuickAdd("task")}><Plus size={17} />Добавить задачу</button></section>
       )}
@@ -148,6 +153,7 @@ export default function Tasks() {
         </div>
       )}
 
+      </div>
       {editing && <TaskEditor task={editing} data={data} onClose={() => setEditing(null)} onSave={(input) => update.mutate(input)} onSubtaskToggle={toggle} onAddSubtask={async (parent, title) => { await moduleMutation("planner.tasks.create", { id: crypto.randomUUID(), title, projectId: parent.projectId, stageId: parent.stageId, parentId: parent.id, workspaceId: parent.workspaceId }); if (navigator.onLine) await refresh(); }} pending={update.isPending} />}
     </div>
   );

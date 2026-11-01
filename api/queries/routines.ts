@@ -7,6 +7,7 @@ import { taskTemplates, tasks, settings, dayClosures, scheduleItems, scheduleExc
 import { dayInZone, addCalendarDays, zonedDateAt } from "../../contracts/shared";
 import { repeatsOn } from "../../contracts/routines";
 import { scheduleForDay } from "../../contracts/schedule";
+import { containingEvent } from "../../contracts/plannerState";
 
 import { createOnce } from "../moduleStore";
 import { lockPlanning } from "../sharing";
@@ -30,7 +31,7 @@ export async function materializeRoutines() {
       const dates = candidates.filter(date => repeatsOn(template, date) && !(closed && date === day));
       for (const date of dates) {
       const id = occurrenceId(template.id, date);
-      const linkedEvent = template.startMin === null ? undefined : scheduleForDay(schedule, exceptions, date).find(event => event.startMin === template.startMin && event.endMin >= event.startMin + template.estimateMin);
+      const linkedEvent = template.startMin === null ? undefined : containingEvent(scheduleForDay(schedule, exceptions, date), template.startMin, template.estimateMin);
       const plannedStart = template.startMin === null ? null : zonedDateAt(date, template.startMin, prefs?.timezone);
       const plannedEnd = plannedStart ? new Date(plannedStart.getTime() + template.estimateMin * 60000) : null;
       await createOnce(tasks, { id, title: template.title, estimateMin: template.estimateMin, due: date, recurrence: template.id, scheduleItemId: linkedEvent?.id ?? null, plannedStart, plannedEnd, isMit: template.isMit, importance: template.isMit ? 3 : 2 }, tx);

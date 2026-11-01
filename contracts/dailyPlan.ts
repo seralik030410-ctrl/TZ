@@ -1,13 +1,14 @@
 import { getFreeWindows, type MinuteEvent, type PlannedAllocation } from "./planning";
 import { dayDistance } from "./shared";
-export type DailyTask = { id: string; title: string; estimateMin: number; importance: number; isMit: boolean; due?: string | null; dependsOn?: string | null; flexibility?: string; status: string; position?: number };
+import { isStandaloneTask } from "./plannerState";
+export type DailyTask = { id: string; title: string; estimateMin: number; importance: number; isMit: boolean; due?: string | null; dependsOn?: string | null; flexibility?: string; status: string; position?: number; parentId?: string | null; scheduleItemId?: string | null };
 export function buildDailyPlan(input: { day: string; startMin: number; endMin: number; reservePercent: number; tasks: DailyTask[]; events: MinuteEvent[]; alreadyPlanned: string[] }) {
   const windows = getFreeWindows(input.startMin, input.endMin, input.events).map(w => ({ ...w }));
   const capacity = windows.reduce((s, w) => s + w.endMin - w.startMin, 0);
   let budget = Math.floor(capacity * (1 - input.reservePercent / 100) / 30) * 30;
   const excluded = new Set(input.alreadyPlanned);
   const completed = new Set(input.tasks.filter(t => t.status === "done").map(t => t.id));
-  const candidates = input.tasks.filter(t => t.status !== "done" && t.flexibility !== "fixed" && !excluded.has(t.id));
+  const candidates = input.tasks.filter(t => isStandaloneTask(t) && t.flexibility !== "fixed" && !excluded.has(t.id));
   const score = (t: DailyTask) => (t.isMit ? 100000 : 0) + t.importance * 1000 + (t.due ? 500 - Math.max(-30, Math.min(30, dayDistance(input.day, t.due))) * 10 : 0);
   const pending = [...candidates].sort((a, b) => score(b) - score(a) || (a.position ?? 0) - (b.position ?? 0) || a.id.localeCompare(b.id));
   const blocks: PlannedAllocation[] = [];

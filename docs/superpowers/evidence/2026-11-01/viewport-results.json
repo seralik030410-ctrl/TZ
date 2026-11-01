@@ -1,0 +1,177 @@
+[
+  {
+    "route": "schedule",
+    "scroll": 345,
+    "width": 360
+  },
+  {
+    "route": "tasks",
+    "scroll": 345,
+    "width": 360
+  },
+  {
+    "route": "projects",
+    "scroll": 345,
+    "width": 360
+  },
+  {
+    "route": "money",
+    "scroll": 345,
+    "width": 360
+  },
+  {
+    "route": "week",
+    "scroll": 345,
+    "width": 360
+  },
+  {
+    "route": "settings",
+    "scroll": 345,
+    "width": 360
+  },
+  {
+    "route": "today",
+    "scroll": 345,
+    "width": 360
+  },
+  {
+    "route": "schedule",
+    "scroll": 375,
+    "width": 390
+  },
+  {
+    "route": "tasks",
+    "scroll": 375,
+    "width": 390
+  },
+  {
+    "route": "projects",
+    "scroll": 375,
+    "width": 390
+  },
+  {
+    "route": "money",
+    "scroll": 375,
+    "width": 390
+  },
+  {
+    "route": "week",
+    "scroll": 375,
+    "width": 390
+  },
+  {
+    "route": "settings",
+    "scroll": 375,
+    "width": 390
+  },
+  {
+    "route": "today",
+    "scroll": 375,
+    "width": 390
+  },
+  {
+    "route": "schedule",
+    "scroll": 753,
+    "width": 768
+  },
+  {
+    "route": "tasks",
+    "scroll": 753,
+    "width": 768
+  },
+  {
+    "route": "projects",
+    "scroll": 753,
+    "width": 768
+  },
+  {
+    "route": "money",
+    "scroll": 753,
+    "width": 768
+  },
+  {
+    "route": "week",
+    "scroll": 753,
+    "width": 768
+  },
+  {
+    "route": "settings",
+    "scroll": 753,
+    "width": 768
+  },
+  {
+    "route": "today",
+    "scroll": 753,
+    "width": 768
+  },
+  {
+    "route": "schedule",
+    "scroll": 1265,
+    "width": 1280
+  },
+  {
+    "route": "tasks",
+    "scroll": 1265,
+    "width": 1280
+  },
+  {
+    "route": "projects",
+    "scroll": 1265,
+    "width": 1280
+  },
+  {
+    "route": "money",
+    "scroll": 1265,
+    "width": 1280
+  },
+  {
+    "route": "week",
+    "scroll": 1265,
+    "width": 1280
+  },
+  {
+    "route": "settings",
+    "scroll": 1265,
+    "width": 1280
+  },
+  {
+    "route": "today",
+    "scroll": 1265,
+    "width": 1280
+  },
+  {
+    "route": "schedule",
+    "scroll": 1425,
+    "width": 1440
+  },
+  {
+    "route": "tasks",
+    "scroll": 1425,
+    "width": 1440
+  },
+  {
+    "route": "projects",
+    "scroll": 1425,
+    "width": 1440
+  },
+  {
+    "route": "money",
+    "scroll": 1425,
+    "width": 1440
+  },
+  {
+    "route": "week",
+    "scroll": 1425,
+    "width": 1440
+  },
+  {
+    "route": "settings",
+    "scroll": 1425,
+    "width": 1440
+  },
+  {
+    "route": "today",
+    "scroll": 1425,
+    "width": 1440
+  }
+]

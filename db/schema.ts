@@ -6,6 +6,7 @@ import {
   timestamp,
   varchar,
   primaryKey,
+  longtext,
 
 } from "drizzle-orm/mysql-core";
 
@@ -18,6 +19,7 @@ const syncFields = () => ({
 });
 
 export const settings = mysqlTable("settings", {
+  taskEpoch: int("task_epoch").notNull().default(0),
   id: varchar("id", { length: 36 }).primaryKey(),
   name: varchar("name", { length: 80 }).notNull().default("Алекс"),
   currency: varchar("currency", { length: 8 }).notNull().default("TJS"),
@@ -200,6 +202,15 @@ export const dayClosures = mysqlTable("profile_day_closures", {
 }, t => [primaryKey({ columns: [t.ownerId, t.day] })]);
 
 export * from "./accounts";
+export const taskArchiveBatches = mysqlTable("task_archive_batches", {
+  id: varchar("id", { length: 36 }).primaryKey(),
+  ownerId: varchar("owner_id", { length: 36 }).notNull(),
+  month: varchar("month", { length: 7 }).notNull(),
+  snapshot: longtext("snapshot").notNull(),
+  revision: varchar("revision", { length: 64 }).notNull(),
+  restoredAt: timestamp("restored_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
 export * from "./agency";
 export * from "./gold";
 export * from "./debts";

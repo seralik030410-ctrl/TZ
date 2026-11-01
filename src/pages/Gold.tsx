@@ -6,7 +6,8 @@ import { z } from "zod";
 import { trpc } from "@/providers/trpc";
 import type { LayoutContext } from "@/lib/planner";
 import { HistoryChart } from "@/components/HistoryChart";
-import { ModuleHeader, Metric, Empty, LoadingError, RecordForm, currencies, currencyField, options, useModuleCache, moduleMutation, type Field } from "@/components/ModuleKit";
+import { ModuleHeader, Metric, Empty, LoadingError, RecordForm } from "@/components/ModuleKit";
+import { currencies, currencyField, options, useModuleCache, moduleMutation, type Field } from "@/lib/moduleData";
 import { tradeSchema, transferSchema, balanceSchema, rulesSchema, goldWriteSchema, goldStats, goldStop, returnRate, dayRate, netResult, closeTime } from "@contracts/gold";
 import { dayInZone, dayDistance, moneyText } from "@contracts/shared";
 

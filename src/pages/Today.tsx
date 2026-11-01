@@ -1,3 +1,5 @@
+import { ScheduleTasks } from "@/components/ScheduleTasks";
+import { remainingMinutes, isStandaloneTask } from "@contracts/plannerState";
 import { scheduleForDay } from "@contracts/schedule";
 import { minutesInZone, daysLeftInMonth, normalizeCurrency } from "@contracts/shared";
 import { useEffect, useState } from "react";
@@ -69,7 +71,7 @@ export default function Today() {
     .filter((block) => localDayKey(block.start) === today)
     .map((block) => {
       const task = data.tasks.find((item) => item.id === block.taskId);
-      if (task?.status === "done" || task?.scheduleItemId) return null;
+      if (!task || task.status === "done" || task.scheduleItemId || task.parentId) return null;
       return {
         id: block.id,
         title: task?.title ?? "Рабочий блок",
@@ -103,8 +105,7 @@ export default function Today() {
 
   const todayTasks = data.tasks.filter((task) => task.status !== "done" && (task.due === today || task.isMit));
   const weekEnd = addCalendarDays(today, 7);
-  const plannedTaskIds = new Set(data.scheduledBlocks.filter(block => !block.isDeleted).map(block => block.taskId));
-  const upcomingUnplanned = data.tasks.filter(task => task.status !== "done" && !task.parentId && !task.scheduleItemId && !!task.due && task.due >= today && task.due <= weekEnd && !plannedTaskIds.has(task.id)).sort((a,b) => (a.due ?? "").localeCompare(b.due ?? "") || b.importance-a.importance);
+  const upcomingUnplanned = data.tasks.filter(task => isStandaloneTask(task) && !!task.due && task.due <= weekEnd && remainingMinutes(task, data.scheduledBlocks) > 0).sort((a,b) => (a.due ?? "").localeCompare(b.due ?? "") || b.importance-a.importance);
   const mitTasks = data.tasks.filter((task) => task.isMit && (task.due === today || task.status !== "done")).slice(0, 3);
   const completedMit = mitTasks.filter((task) => task.status === "done").length;
   const overdue = data.tasks.filter((task) => task.status !== "done" && task.due && task.due < today);
@@ -145,12 +146,7 @@ export default function Today() {
           <p className="subtitle">Сегодня {schedule.filter((event) => event.kind === "class").length} пары, {freeWindows.length} окна и {overdue.length + todayTasks.filter((task) => task.due === today).length} дел, требующих внимания.</p>
         </div>
       </div>
-      <div className="action-row" style={{ marginBottom: 18 }}>
-        <DailyPlanner data={data} />
-        <CloseDay data={data} />
-        <button className="button button-primary" type="button" onClick={() => openQuickAdd("task")}><Plus size={18} />Новая задача</button>
-        <button className="button button-ghost" type="button" onClick={() => navigate("/projects")}><Timer size={18} />{data.activeTimer ? "Открыть таймер" : "Старт таймера"}</button>
-      </div>
+
 
         <section className="card today-timeline">
           <div className="section-title" style={{ marginTop: 0 }}>
@@ -169,12 +165,13 @@ export default function Today() {
                   <div className="timeline-row">
                     <div className="timeline-time">{minutesToTime(start)}</div>
                     {item.type === "event" ? (
-                      <button className={`timeline-event ${item.event.fixed ? "fixed" : ""}`} type="button" onClick={() => navigate(item.event.fixed ? "/schedule" : "/tasks")}>
+                      <div className={`timeline-event ${item.event.fixed ? "fixed" : ""}`}>
+                        <button className="timeline-open text-button" type="button" onClick={() => navigate(item.event.fixed ? "/schedule" : "/tasks")}>Открыть {item.event.fixed ? "занятие" : "задачу"}</button>
                         <strong>{item.event.title}</strong>
                         <span>{minutesToTime(end)} · {formatDuration(end - start)}{item.event.location ? ` · ${item.event.location}` : ""}</span>
-                        {item.event.linkedTasks.map(task => <small className={`timeline-subtask ${task.parentId ? "nested" : ""}`} key={task.id}>{task.parentId ? "·" : "↳"} {task.title}</small>)}
+                        {item.event.fixed && <ScheduleTasks data={data} eventId={item.event.id} day={today} />}
                         {item.event.fixed ? <LockKeyhole className="dot" size={13} style={{ background: "none" }} /> : <span className="dot" style={{ background: "var(--cat-personal)" }} />}
-                      </button>
+                      </div>
                     ) : (
                       <div className="free-window">
                         <span>Свободно {formatDuration(end - start)}</span>
@@ -193,10 +190,17 @@ export default function Today() {
         </section>
 
 
+      <div className="action-row" style={{ marginBottom: 18 }}>
+        <DailyPlanner data={data} />
+        <CloseDay data={data} />
+        <button className="button button-primary" type="button" onClick={() => openQuickAdd("task")}><Plus size={18} />Новая задача</button>
+        <button className="button button-ghost" type="button" onClick={() => navigate("/projects")}><Timer size={18} />{data.activeTimer ? "Открыть таймер" : "Старт таймера"}</button>
+      </div>
+
       {upcomingUnplanned.length > 0 && <section className="card" style={{ marginBottom: 14 }}>
         <div className="section-title" style={{ marginTop: 0 }}><div><p className="eyebrow">Ближайшие 7 дней</p><h2>Задачи без времени в расписании</h2></div><span className="badge">{upcomingUnplanned.length}</span></div>
         <p className="small muted">Срок уже указан. Распределите оценённое время по свободным окнам до дедлайна.</p>
-        <div className="plain-list">{upcomingUnplanned.slice(0, 6).map(task => <div className="list-row" key={task.id}><Clock3 size={17} color="var(--accent)"/><div className="list-row-main"><strong>{task.title}</strong><span>{data.projects.find(project => project.id === task.projectId)?.name ?? "Личная задача"} · срок {task.due} · {formatDuration(task.estimateMin)}</span></div><button className="button button-ghost button-small" type="button" disabled={scheduleTask.isPending} onClick={() => scheduleTask.mutate({ taskId: task.id, startDate: today, endDate: task.due! })}>Распределить</button></div>)}</div>
+        <div className="plain-list">{upcomingUnplanned.slice(0, 6).map(task => <div className="list-row" key={task.id}><Clock3 size={17} color="var(--accent)"/><div className="list-row-main"><strong>{task.title}</strong><span>{data.projects.find(project => project.id === task.projectId)?.name ?? "Личная задача"} · срок {task.due} · {formatDuration(remainingMinutes(task, data.scheduledBlocks))} осталось</span></div><button className="button button-ghost button-small" type="button" disabled={scheduleTask.isPending} onClick={() => scheduleTask.mutate({ taskId: task.id, startDate: today, endDate: task.due! < today ? today : task.due! })}>Распределить</button></div>)}</div>
       </section>}
 
       <div className="dashboard-grid stagger">

@@ -14,6 +14,7 @@ import { calendarDate, dayInZone, minutesInZone, zonedDateAt } from "../contract
 
 import { existingOwned } from "./moduleStore";
 import { lockPlanning, assertSharedSlot } from "./sharing";
+import { isStandaloneTask, remainingMinutes, occupiedOnDay, undoBelongsToEpoch } from "../contracts/plannerState";
 
 type DB = ReturnType<typeof getDb>;
 type Tx = Parameters<Parameters<DB["transaction"]>[0]>[0];
@@ -29,12 +30,12 @@ async function preview(db: DB | Tx, input: z.infer<typeof planInput>) {
   const selected = new Set(input.taskIds);
   if (taskRows.filter(t => selected.has(t.id)).length !== selected.size) throw new TRPCError({ code: "NOT_FOUND", message: "Задача не найдена" });
   const replacing = input.mode === "reflow" ? dayBlocks.filter(b => selected.has(b.taskId) && b.status === "planned" && (input.day > today || b.start.getTime() > Date.now()) && taskRows.find(t => t.id === b.taskId)?.flexibility !== "fixed") : [];
-  const preserved = dayBlocks.filter(b => !replacing.some(r => r.id === b.id));
-  events.push(...preserved.map(b => ({ id: b.id, startMin: dayInZone(b.start, zone) < input.day ? 0 : minutesInZone(b.start, zone), endMin: dayInZone(b.end, zone) > input.day ? 1440 : minutesInZone(b.end, zone), fixed: true })));
-  const allTasks = taskRows.filter(t => selected.has(t.id) || t.status === "done");
-  const result = buildDailyPlan({ ...input, startMin: Math.max(input.startMin, prefs.workStartMin), endMin: prefs.workEndMin, tasks: allTasks, events, alreadyPlanned: preserved.map(b => b.taskId) });
+  const planningTasks = taskRows.map(t => replacing.some(b => b.taskId === t.id) ? { ...t, plannedStart: null, plannedEnd: null } : t);
+  events.push(...occupiedOnDay(input.day, zone, planningTasks, blocks.filter(b => !replacing.some(r => r.id === b.id))));
+  const allTasks = planningTasks.filter(t => selected.has(t.id) || t.status === "done").map(t => ({ ...t, estimateMin: remainingMinutes(t, blocks.filter(b => !replacing.some(r => r.id === b.id))) }));
+  const result = buildDailyPlan({ ...input, startMin: Math.max(input.startMin, prefs.workStartMin, input.day === today ? Math.ceil((minutesInZone(new Date(), zone) + 1) / 30) * 30 : 0), endMin: prefs.workEndMin, tasks: allTasks.filter(t => t.status === "done" || isStandaloneTask(t) && t.estimateMin > 0), events, alreadyPlanned: [] });
   const revision = createHash("sha256").update(JSON.stringify({ input, prefs, taskRows, schedule, exceptions, blocks })).digest("hex");
-  return { ...result, revision, timezone: zone, replacingIds: replacing.map(b => b.id), taskWorkspaces: Object.fromEntries(taskRows.map(t => [t.id, t.workspaceId])) };
+  return { ...result, revision, timezone: zone, taskEpoch: prefs.taskEpoch, replacingIds: replacing.map(b => b.id), taskWorkspaces: Object.fromEntries(taskRows.map(t => [t.id, t.workspaceId])) };
 }
 export const dailyRouter = createRouter({
   preview: protectedQuery.input(planInput).query(({ input }) => preview(getDb(), input)),
@@ -54,7 +55,7 @@ export const dailyRouter = createRouter({
         await assertSharedSlot(tx, [block.taskId], zonedDateAt(block.day, block.startMin, plan.timezone), zonedDateAt(block.day, block.endMin, plan.timezone), plan.replacingIds);
         await tx.insert(scheduledBlocks).values(owned({ id, taskId: block.taskId, workspaceId: plan.taskWorkspaces[block.taskId] ?? null, start: zonedDateAt(block.day, block.startMin, plan.timezone), end: zonedDateAt(block.day, block.endMin, plan.timezone), updatedAt: now }));
       }
-      await tx.insert(reflowLog).values(owned({ id: input.operationId, reason: "daily-plan", changes: JSON.stringify({ ids, replacing: plan.replacingIds, created: Math.floor(now.getTime() / 1000) }), applied: true }));
+      await tx.insert(reflowLog).values(owned({ id: input.operationId, reason: "daily-plan", changes: JSON.stringify({ taskEpoch: plan.taskEpoch, ids, replacing: plan.replacingIds, created: Math.floor(now.getTime() / 1000) }), applied: true }));
       return { id: input.operationId };
     });
   }),
@@ -63,6 +64,8 @@ export const dailyRouter = createRouter({
       await lockPlanning(tx);
       const [log] = await tx.select().from(reflowLog).where(and(privateScope(reflowLog), eq(reflowLog.id, input.id))).for("update");
       if (!log || !log.applied || log.reason !== "daily-plan") return;
+      const [prefs] = await tx.select().from(settings).where(and(privateScope(settings), eq(settings.id, currentSettingsId())));
+      if (!undoBelongsToEpoch(JSON.parse(log.changes), prefs?.taskEpoch ?? 0)) throw new TRPCError({ code: "CONFLICT", message: "Эта раскладка относится к списку задач до архива. Отмена недоступна." });
       const { ids, replacing = [], created } = JSON.parse(log.changes) as { ids: string[]; replacing?: string[]; created: number };
       for (const id of ids) {
         const [block] = await tx.select().from(scheduledBlocks).where(and(visible(scheduledBlocks), eq(scheduledBlocks.id, id))).for("update");

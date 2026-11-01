@@ -1,0 +1,182 @@
+[
+  {
+    "Path": "C:\\Users\\alijo\\Documents\\app\\api\\accountProcedure.ts",
+    "Hash": "D5E7352CB8861C90499ED538E4C7499FBB5A922275E7DCB26646CC81CF138994"
+  },
+  {
+    "Path": "C:\\Users\\alijo\\Documents\\app\\api\\dailyRouter.ts",
+    "Hash": "E7A5BE6A958C66FE4A89CE486CA6FB9A54066D3666ED953BFCD34A54BEE882EE"
+  },
+  {
+    "Path": "C:\\Users\\alijo\\Documents\\app\\api\\lib\\accountContext.ts",
+    "Hash": "40484D6D023CE04986574965600A32E37A72B187E53464FF151937E6A1FEA33A"
+  },
+  {
+    "Path": "C:\\Users\\alijo\\Documents\\app\\api\\middleware.ts",
+    "Hash": "1041F867EE16A8EFF78D5043150820C88B31AD6E3EE5435A983B9F7CEB9B26C5"
+  },
+  {
+    "Path": "C:\\Users\\alijo\\Documents\\app\\api\\plannerRouter.ts",
+    "Hash": "E2ECBCCD99A31380F87B4A8972FA4630CC8AD7B072EA0CEE0A32B1C45488DEC1"
+  },
+  {
+    "Path": "C:\\Users\\alijo\\Documents\\app\\api\\queries\\routines.ts",
+    "Hash": "AE2CB6C4877205AA16A57C8DF5A243A56324E05CCC291F5985FA38A5C6752845"
+  },
+  {
+    "Path": "C:\\Users\\alijo\\Documents\\app\\api\\router.ts",
+    "Hash": "2A496D1A0A0B72D7CEC8B558A30DD0F5EBDB1FC2B9633EFD2A183EA4028763D6"
+  },
+  {
+    "Path": "C:\\Users\\alijo\\Documents\\app\\api\\sharing.ts",
+    "Hash": "1B73843A6866D34318FFC4DF16F247BE2F5F727C64910CFFF83D0EE3775B98B9"
+  },
+  {
+    "Path": "C:\\Users\\alijo\\Documents\\app\\api\\taskArchiveRouter.ts",
+    "Hash": "ED70CF7204D9778063CDE72FCF4D684D8C6C4D5737AD64C237FDBF3A217CA64C"
+  },
+  {
+    "Path": "C:\\Users\\alijo\\Documents\\app\\contracts\\dailyPlan.ts",
+    "Hash": "BB995448183C27F2867C1D48B8759E1002127D234A3CD40FA3F39940C13FA59A"
+  },
+  {
+    "Path": "C:\\Users\\alijo\\Documents\\app\\contracts\\plannerState.test.ts",
+    "Hash": "78DDD3A490CF52260F545C587506233D91002E8BE5D1E1BB6130DBFA343501C4"
+  },
+  {
+    "Path": "C:\\Users\\alijo\\Documents\\app\\contracts\\plannerState.ts",
+    "Hash": "6AC3F799EB425EA956F8789A5B490BD8D6AB1DA9EE61BFB86F2192255EDB09DD"
+  },
+  {
+    "Path": "C:\\Users\\alijo\\Documents\\app\\contracts\\planning.test.ts",
+    "Hash": "995D1E7E0020F4C4E5026DEBF0E3FE4FFD2B9D977F65CEE83A56C5529D3AF731"
+  },
+  {
+    "Path": "C:\\Users\\alijo\\Documents\\app\\contracts\\planning.ts",
+    "Hash": "FB94361A29CD4F217DDBB4EDA66F0C9804448D8BFB7EA90E2AF6B6EC2C2734B2"
+  },
+  {
+    "Path": "C:\\Users\\alijo\\Documents\\app\\contracts\\routines.ts",
+    "Hash": "709C786248B94FFDA66C12F5804559A546BD6626E1485D0E1B5997926EED801A"
+  },
+  {
+    "Path": "C:\\Users\\alijo\\Documents\\app\\contracts\\taskArchive.test.ts",
+    "Hash": "E4D4919F4CEB31DBD852374023117296A3E867820C718E5C11D882DF2525931D"
+  },
+  {
+    "Path": "C:\\Users\\alijo\\Documents\\app\\contracts\\taskArchive.ts",
+    "Hash": "2259187DAC4DFFDBF8C01B4C58EFD8DEE7FDD90ABA7E8351A75EE7CF3130D455"
+  },
+  {
+    "Path": "C:\\Users\\alijo\\Documents\\app\\contracts\\validationMessage.test.ts",
+    "Hash": "5354F15A1162CF435EB5F7037589A702E875EE3AF3219C917A2DEBAD48968C6F"
+  },
+  {
+    "Path": "C:\\Users\\alijo\\Documents\\app\\contracts\\validationMessage.ts",
+    "Hash": "5209BDA70483CFDFC2539E0DA7A56F27EF59B8EC24D5E538D3E470AD22ABC6C4"
+  },
+  {
+    "Path": "C:\\Users\\alijo\\Documents\\app\\db\\migrations\\0013_task_archive.sql",
+    "Hash": "6A7E6EAC4BCFE4F9AFA0D29F8D1A88A7119F1AB2CA719C7C300861BE5FA519A9"
+  },
+  {
+    "Path": "C:\\Users\\alijo\\Documents\\app\\db\\migrations\\meta\\_journal.json",
+    "Hash": "C8844CF5266A08C689B7F60021E476C36DCB7F129A27785A20CD6EDB12EB1877"
+  },
+  {
+    "Path": "C:\\Users\\alijo\\Documents\\app\\db\\schema.ts",
+    "Hash": "CC4F1C2A311AB31FE3BC6F4F4D8C4B64659A6D18C82AAA6DB55ECF902AD198A6"
+  },
+  {
+    "Path": "C:\\Users\\alijo\\Documents\\app\\src\\App.tsx",
+    "Hash": "561C8BD6CFE7E0BAA8BE629FAA59433F335C346CDFD828E8D242B33FF7C552E5"
+  },
+  {
+    "Path": "C:\\Users\\alijo\\Documents\\app\\src\\components\\DailyPlanner.tsx",
+    "Hash": "70DAEA64CFF241B38F79F2878300E499A4D19D9D0205DAD9E01FE9023733ED65"
+  },
+  {
+    "Path": "C:\\Users\\alijo\\Documents\\app\\src\\components\\Modal.tsx",
+    "Hash": "4F1AC01EF7C13728189768EF5119DD042B508BE813A6D6CAAA3A123944D84285"
+  },
+  {
+    "Path": "C:\\Users\\alijo\\Documents\\app\\src\\components\\ModuleAttention.tsx",
+    "Hash": "8A4E2CA778E6A875B4D7A55BC7789F758E6FBAF79CBEEF7EC8A7951B50EE1BB2"
+  },
+  {
+    "Path": "C:\\Users\\alijo\\Documents\\app\\src\\components\\ModuleKit.tsx",
+    "Hash": "98F245917B91BCFE1FE2DA6F28ADF286E84763BE066A3CE492680661F242F839"
+  },
+  {
+    "Path": "C:\\Users\\alijo\\Documents\\app\\src\\components\\QuickAdd.tsx",
+    "Hash": "ACB46D20E6CB389D9FC17FFE78E95A9EF8542EDCA54749EC731AACA4BC2F1B9F"
+  },
+  {
+    "Path": "C:\\Users\\alijo\\Documents\\app\\src\\components\\Routines.tsx",
+    "Hash": "947711DFF2107A937BF5A0A20F826FE480E559FDC6A5099D0DD96B48CBD35707"
+  },
+  {
+    "Path": "C:\\Users\\alijo\\Documents\\app\\src\\components\\ScheduleTasks.tsx",
+    "Hash": "EE6E58EF8CFDF1C0A7F4DB9A068D9255E036084354CADE2AB9DA183D366A13F7"
+  },
+  {
+    "Path": "C:\\Users\\alijo\\Documents\\app\\src\\components\\TaskArchive.tsx",
+    "Hash": "7190B5F7AA99B21DFC346CC03FF46D5AC0DDE659ED28084E98FBE543E4F673C6"
+  },
+  {
+    "Path": "C:\\Users\\alijo\\Documents\\app\\src\\lib\\moduleData.ts",
+    "Hash": "A87FD66C868C8E913CF5662479FE15CD04FB3AD1EC195A207FED042C6FC917CC"
+  },
+  {
+    "Path": "C:\\Users\\alijo\\Documents\\app\\src\\lib\\offline.ts",
+    "Hash": "19C619361E72D0F53D8216258BD9802468C1B0F960473A49CF70C4285F0501C3"
+  },
+  {
+    "Path": "C:\\Users\\alijo\\Documents\\app\\src\\lib\\tabs.ts",
+    "Hash": "E357F251DF03829A757E6BD999DF94EB16D192AC1D6E3159D1CE7E59FF317F56"
+  },
+  {
+    "Path": "C:\\Users\\alijo\\Documents\\app\\src\\modules.css",
+    "Hash": "263A462654E09725B93EE505CDE69758AEDCB6DBF9EB7D3CF9E3A71C59F3736C"
+  },
+  {
+    "Path": "C:\\Users\\alijo\\Documents\\app\\src\\pages\\Agency.tsx",
+    "Hash": "0D21A84D0B03D2A51D06AF6256D49CB5F1ED6F88E9A796366B21F87617C54C49"
+  },
+  {
+    "Path": "C:\\Users\\alijo\\Documents\\app\\src\\pages\\Debts.tsx",
+    "Hash": "F75EA8468F785E4E094B2928266FBC4435745A3247C14547729CF43CC390A874"
+  },
+  {
+    "Path": "C:\\Users\\alijo\\Documents\\app\\src\\pages\\Gold.tsx",
+    "Hash": "F5BA4195BE102360B641D4E5FE62E2D65297E9D157142837561226BAC3042280"
+  },
+  {
+    "Path": "C:\\Users\\alijo\\Documents\\app\\src\\pages\\Projects.tsx",
+    "Hash": "A069FDD485801A0A830CF28CD327597EB3892A21B6C03CCB58578E5E0E0CD61F"
+  },
+  {
+    "Path": "C:\\Users\\alijo\\Documents\\app\\src\\pages\\Schedule.tsx",
+    "Hash": "892B40F89226DB4351423812424220F87919E4A5D365DAB8F32D25B6DC6F46E1"
+  },
+  {
+    "Path": "C:\\Users\\alijo\\Documents\\app\\src\\pages\\Settings.tsx",
+    "Hash": "48BBAA65BBAACE89A04C1ADDE8C61AC9825BBD8A4DEB72FF58AD2BD5FC368FD4"
+  },
+  {
+    "Path": "C:\\Users\\alijo\\Documents\\app\\src\\pages\\Tasks.tsx",
+    "Hash": "91141C7DE8DE8DB466E272CFB911034E0A6B17960199A13F2E903AE34D09F921"
+  },
+  {
+    "Path": "C:\\Users\\alijo\\Documents\\app\\src\\pages\\Today.tsx",
+    "Hash": "51A0981EF11DA71489353200BF90EBDF33D5CEF4B9D498108995081B795E342C"
+  },
+  {
+    "Path": "C:\\Users\\alijo\\Documents\\app\\src\\pages\\Week.tsx",
+    "Hash": "8D727FAB9315A417832AC6DFEE1B1F52FB57136B03CCADA46F62D3457ABDC43C"
+  },
+  {
+    "Path": "C:\\Users\\alijo\\Documents\\app\\src\\providers\\trpc.tsx",
+    "Hash": "6C525E836065D01E0550FE1F68F64004089EDA8301990374C388C102C0D064DB"
+  }
+]

@@ -64,6 +64,7 @@ export type PlanningTask = {
   estimateMin: number;
   priority: number;
   dependsOn?: string | null;
+  due?: string | null;
 };
 
 export type PlannedAllocation = {
@@ -85,14 +86,22 @@ export function allocateTasks(
     Object.keys(windowsByDay).map((day) => [day, dailyCapMinutes]),
   ) as Record<string, number>;
 
-  for (const task of ordered) {
+  const completed = new Map<string, { day: string; endMin: number }>();
+  while (ordered.length) {
+    const index = ordered.findIndex(task => !task.dependsOn || completed.has(task.dependsOn));
+    if (index < 0) break;
+    const [task] = ordered.splice(index, 1);
+    const after = task.dependsOn ? completed.get(task.dependsOn) : undefined;
     let remaining = Math.max(30, Math.round(task.estimateMin * estimationFactor));
-    for (const [day, windows] of Object.entries(windowsByDay)) {
+    for (const [day, windows] of Object.entries(windowsByDay).sort(([a], [b]) => a.localeCompare(b))) {
+      if (task.due && day > task.due) continue;
+      if (after && day < after.day) continue;
       if (remaining <= 0) break;
       for (const window of windows) {
+        const start = Math.max(window.startMin, after?.day === day ? after.endMin : 0);
         if (remaining <= 0 || remainingByDay[day] <= 0) break;
         const available = Math.min(
-          window.endMin - window.startMin,
+          window.endMin - start,
           remainingByDay[day],
         );
         if (available < 30) continue;
@@ -101,13 +110,14 @@ export function allocateTasks(
         const allocation: PlannedAllocation = {
           taskId: task.id,
           day,
-          startMin: window.startMin,
-          endMin: window.startMin + duration,
+          startMin: start,
+          endMin: start + duration,
         };
         result.push(allocation);
-        window.startMin += duration;
+        window.startMin = start + duration;
         remainingByDay[day] -= duration;
         remaining -= duration;
+        if (!remaining) completed.set(task.id, { day, endMin: window.startMin });
       }
     }
   }

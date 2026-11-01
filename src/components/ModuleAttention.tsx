@@ -2,7 +2,7 @@ import { useNavigate } from "react-router";
 import { Clock3 } from "lucide-react";
 import { trpc } from "@/providers/trpc";
 import type { PlannerData } from "@/lib/planner";
-import { useModuleCache } from "./ModuleKit";
+import { useModuleCache } from "@/lib/moduleData";
 import { agencyEvents, outstanding } from "@contracts/agency";
 import { dayInZone, dayDistance, moneyText } from "@contracts/shared";
 import { debtRemaining } from "@contracts/debts";

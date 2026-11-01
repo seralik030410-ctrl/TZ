@@ -5,6 +5,13 @@ const DB_NAME = "planner-offline";
 const STORE_NAME = "mutations";
 let activeAccount: string | null = null;
 export const getOfflineAccount = () => activeAccount;
+export const getTaskEpoch = () => activeAccount ? Number(localStorage.getItem(`ritm-task-epoch:${activeAccount}`) ?? 0) : 0;
+export function setTaskEpoch(epoch: number) {
+  if (!activeAccount || getTaskEpoch() === epoch) return;
+  localStorage.setItem(`ritm-task-epoch:${activeAccount}`, String(epoch));
+  for (const key of ["ritm-last-task-move", "ritm-last-daily-plan"]) localStorage.removeItem(accountStorageKey(key));
+  window.dispatchEvent(new Event("module-queue-change"));
+}
 export const setOfflineAccount = (id: string | null) => { activeAccount = id; };
 export function accountStorageKey(key: string) {
   if (!activeAccount) throw new Error("Войдите в профиль перед работой с данными");
@@ -37,6 +44,7 @@ export type QueuedMutation = {
   input: unknown;
   createdAt: number;
   accountId: string;
+  taskEpoch?: number;
 };
 
 function openDatabase(): Promise<IDBDatabase> {
@@ -56,7 +64,7 @@ export async function queueMutation(mutation: Omit<QueuedMutation, "createdAt" |
   const database = await openDatabase();
   await new Promise<void>((resolve, reject) => {
     const transaction = database.transaction(STORE_NAME, "readwrite");
-    transaction.objectStore(STORE_NAME).put({ ...mutation, id: `${accountId}:${mutation.id}`, accountId, createdAt: Date.now() });
+    transaction.objectStore(STORE_NAME).put({ ...mutation, id: `${accountId}:${mutation.id}`, accountId, taskEpoch: getTaskEpoch(), createdAt: Date.now() });
     transaction.oncomplete = () => resolve();
     transaction.onerror = () => reject(transaction.error);
   });
@@ -65,7 +73,7 @@ export async function queueMutation(mutation: Omit<QueuedMutation, "createdAt" |
 }
 
 export function projectPlannerData(data: PlannerData, pending: QueuedMutation[]): PlannerData {
-  pending = pending.filter(mutation => mutation.accountId === data.user.id);
+  pending = pending.filter(mutation => mutation.accountId === data.user.id && (mutation.taskEpoch ?? 0) === (data.settings?.taskEpoch ?? 0));
   if (!pending.some(m => m.path.startsWith("planner.tasks."))) return data;
   let tasks = [...data.tasks];
   const previous = new Map<string, typeof tasks>();
@@ -113,10 +121,11 @@ async function replay(accountId: string) {
   let replayed = 0;
   for (const mutation of mutations.filter(row => row.accountId === accountId).sort((a, b) => a.createdAt - b.createdAt)) {
     if (activeAccount !== accountId) break;
+    if (mutation.path.startsWith("planner.tasks.") && (mutation.taskEpoch ?? 0) !== getTaskEpoch()) continue;
     try {
       const response = await fetch(`/api/trpc/${mutation.path}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "X-Planner-Account": accountId },
+        headers: { "Content-Type": "application/json", "X-Planner-Account": accountId, "X-Planner-Task-Epoch": String(mutation.taskEpoch ?? 0) },
         credentials: "include",
         body: JSON.stringify(superjson.serialize(mutation.input)),
       });
