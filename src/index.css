@@ -702,3 +702,16 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
 .stage-add-form { align-items: center; margin: 8px 0; }
 .stage-add-form .input { min-width: 0; flex: 1; }
 .project-dependency { display: block; margin-top: 2px; color: var(--text-soft); font-size: 10px; }
+
+.project-stage { gap: 0; padding: 12px; }
+.project-stage > .section-title { flex-wrap: wrap; gap: 4px 12px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+.project-stage > .section-title > strong { flex: 1 1 120px; overflow-wrap: anywhere; font-size: 13px; }
+.project-stage-actions { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.project-stage-actions .text-button { font-size: 12px; }
+.project-stage .project-tree-task { display: grid; grid-template-columns: 7px minmax(0, 1fr); align-items: start; gap: 0 10px; }
+.project-stage .task-tree-mark { margin-top: 19px; }
+.project-stage .project-task-edit { display: flex; align-items: center; width: 100%; min-height: 44px; padding: 9px 0; color: var(--text); font-size: 13px; font-weight: 500; line-height: 1.5; text-align: left; white-space: normal; overflow-wrap: anywhere; }
+.project-stage .project-tree-children { grid-column: 2; margin: 0 0 6px; padding-left: 14px; gap: 0; }
+.project-stage .project-tree-children > div { display: grid; grid-template-columns: 7px minmax(0, 1fr); align-items: start; }
+.project-stage .project-dependency { margin: -4px 0 8px; line-height: 1.5; }
+.project-stage > .muted { display: block; padding: 10px 0 2px; }
