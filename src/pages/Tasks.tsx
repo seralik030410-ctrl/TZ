@@ -198,7 +198,7 @@ function TaskCard({ task, data, onToggle, onEdit, onArchive, compact = false }: 
   );
 }
 
-function TaskEditor({ task, data, onClose, onSave, onSubtaskToggle, onAddSubtask, pending }: {
+export function TaskEditor({ task, data, onClose, onSave, onSubtaskToggle, onAddSubtask, pending }: {
   task: Task;
   data: LayoutContext["data"];
   onClose: () => void;

@@ -1,5 +1,10 @@
 import { isStandaloneTask, remainingMinutes } from "@contracts/plannerState";
 import { SharedAccess } from "@/components/SharedAccess";
+import { QuickAdd } from "@/components/QuickAdd";
+import { TaskEditor } from "./Tasks";
+import { RecordForm } from "@/components/ModuleKit";
+import { moduleMutation, options } from "@/lib/moduleData";
+import { projectUpdateSchema } from "@contracts/projects";
 import { MonthNavigator } from "@/components/MonthNavigator";
 import { AppSelect, DateField } from "@/components/FormControls";
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from "react";
@@ -27,6 +32,7 @@ import {
   projectTypeLabel,
   type LayoutContext,
   type Project,
+  type Task,
 } from "@/lib/planner";
 
 export default function Projects() {
@@ -34,6 +40,10 @@ export default function Projects() {
   const utils = trpc.useUtils();
   const [viewMonth, setViewMonth] = useState<string | null>(null);
   const [newProject, setNewProject] = useState(false);
+  const [paymentProject, setPaymentProject] = useState<Project | null>(null);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [newTask, setNewTask] = useState<{ projectId: string; stageId?: string } | null>(null);
   const [timerProject, setTimerProject] = useState<Project | null>(null);
   const [timerOpen, setTimerOpen] = useState(false);
   const [stageFor, setStageFor] = useState<string | null>(null);
@@ -41,6 +51,9 @@ export default function Projects() {
   const today = localDayKey();
 
   const refresh = async () => { await utils.planner.bootstrap.invalidate(); };
+  const updateProject = trpc.planner.projects.update.useMutation();
+  const updateTask = trpc.planner.tasks.update.useMutation({ onSuccess: async () => { await refresh(); setEditingTask(null); }, onError: e => toast.error(e.message) });
+  const toggleTask = (task: Task) => updateTask.mutate({ id: task.id, status: task.status === "done" ? "plan" : "done" });
   const startTimer = trpc.planner.timer.start.useMutation({
     onSuccess: async () => { await refresh(); toast.success("Фокус-сессия началась"); },
     onError: (error) => toast.error(error.message),
@@ -117,24 +130,26 @@ export default function Projects() {
               <div className="project-top">
                 <div className="project-symbol"><FolderKanban size={22} /></div>
                 <div className="project-title"><h3>{project.name} {project.workspaceId && <span className="badge">Общее</span>}</h3><p>{projectTypeLabel[project.type]} · {openTasks.length} открытых задач</p></div>
-                <span className={`badge ${project.status === "active" ? "badge-success" : "badge-warning"}`}>{project.status === "active" ? "В работе" : "Пауза"}</span>
+                <span className={`badge ${project.status === "active" || project.status === "done" ? "badge-success" : "badge-warning"}`}>{project.status === "active" ? "В работе" : project.status === "done" ? "Завершён" : "Пауза"}</span>
               </div>
               <div className="progress-track" aria-label={`${dailyPercent}% дневной цели`}><div className="progress-fill" style={{ transform: `scaleX(${dailyPercent / 100})` }} /></div>
               <div className="project-stats"><span>{formatDuration(todayMinutes)} из {formatDuration(project.dailyMinutesGoal)} сегодня</span><strong>{dailyPercent}%</strong></div>
               <div className="sparkline" aria-label="Часы за последние 14 дней">
                 {chart.map((minutes, index) => <span key={index} style={{ height: `${Math.max(5, minutes / chartMax * 100)}%`, opacity: minutes ? 0.8 : 0.16 }} title={`${minutes} минут`} />)}
               </div>
+              <div className="action-row" style={{ margin: "12px 0" }}><button className="button button-ghost button-small" onClick={() => setEditingProject(project)}>Редактировать проект</button><button className="button button-primary button-small" onClick={() => setNewTask({ projectId: project.id })}><Plus size={15} />Новая задача</button></div>
               <div className="project-next"><span>Ближайший шаг</span>{project.nextStep || "Определите следующее конкретное действие"}</div>
               <div className="project-stats" style={{ marginBottom: 14 }}>
                 <span><CalendarRange size={13} style={{ display: "inline", marginRight: 4 }} />{project.deadline ? `${daysLeft} дн. до дедлайна` : "Без дедлайна"}</span>
                 {remainingEstimate > 0 && <strong>{formatDuration(neededPerDay)}/день</strong>}
               </div>
               <div className="project-profit"><strong><TrendingUp size={14} />Финансы проекта</strong>{Object.entries(linkedMoney).length ? Object.entries(linkedMoney).map(([code, money]) => <span key={code}>Прибыль {formatMoney(money.income-money.expense, code)} <small>· доход {formatMoney(money.income, code)} / расходы {formatMoney(money.expense, code)}</small></span>) : <span>Пока нет операций · план {formatMoney(project.expectedIncome, data.settings?.currency)}</span>}</div>
+              <div className="project-profit"><strong>Ожидается после сдачи</strong>{(data.pendingTransactions ?? []).filter(t => t.projectId === project.id).map(t => <span key={t.id}>{formatMoney(t.amount, t.currency)}{t.expectedOn ? ` · ${t.expectedOn}` : ""}</span>)}<button className="text-button" onClick={() => setPaymentProject(project)}>+ Ожидаемая оплата</button></div>
               <section className="project-stage-tree"><div className="section-title"><strong>Этапы и задачи</strong><button className="text-button" type="button" onClick={() => { setStageFor(stageFor === project.id ? null : project.id); setStageName(""); }}>+ этап</button></div>
                 {stageFor === project.id && <form className="action-row stage-add-form" onSubmit={event => { event.preventDefault(); if (!stageName.trim()) return; createStage.mutate({ projectId: project.id, name: stageName.trim() }, { onSuccess: () => { setStageFor(null); setStageName(""); } }); }}><input autoFocus className="input" aria-label="Название нового этапа" placeholder="Например: Подготовка материалов" value={stageName} onChange={event => setStageName(event.target.value)} maxLength={160}/><button className="button button-ghost button-small" disabled={!stageName.trim() || createStage.isPending} type="submit">Добавить</button></form>}
                 {([...stages, ...(projectTasks.some(t => !t.stageId) ? [{ id: "__unassigned", name: "Без этапа", position: 0 }] : [])]).map(stage => {
                   const stageTasks = projectTasks.filter(task => stage.id === "__unassigned" ? !task.stageId : task.stageId === stage.id);
-                  return <div className="project-stage" key={stage.id}><div className="section-title"><strong>{stage.name}</strong>{stage.id !== "__unassigned" && <button className="text-button" disabled={autoPlan.isPending} onClick={() => planStage(project, stage.id)}>Распределить</button>}</div>{stageTasks.filter(task => !task.parentId).map(task => <div className="project-tree-task" key={task.id}><span className={`task-tree-mark ${task.status === "done" ? "done" : ""}`} /> <span>{task.title}{task.dependsOn && <small className="project-dependency">После: {data.tasks.find(item => item.id === task.dependsOn)?.title ?? "связанной задачи"}</small>}</span>{projectTasks.filter(child => child.parentId === task.id).length > 0 && <div className="project-tree-children">{projectTasks.filter(child => child.parentId === task.id).map(child => <div key={child.id}><span className={`task-tree-mark ${child.status === "done" ? "done" : ""}`} />{child.title}</div>)}</div>}</div>)}{stageTasks.length === 0 && <small className="muted">Здесь появятся задачи</small>}</div>;
+                  return <div className="project-stage" key={stage.id}><div className="section-title"><strong>{stage.name}</strong><button className="text-button" onClick={() => setNewTask({ projectId: project.id, stageId: stage.id === "__unassigned" ? "" : stage.id })}>+ задача</button>{stage.id !== "__unassigned" && <button className="text-button" disabled={autoPlan.isPending} onClick={() => planStage(project, stage.id)}>Распределить</button>}</div>{stageTasks.filter(task => !task.parentId).map(task => <div className="project-tree-task" key={task.id}><span className={`task-tree-mark ${task.status === "done" ? "done" : ""}`} /> <span><button type="button" className="project-task-edit text-button" onClick={() => setEditingTask(task)}>{task.title}</button>{task.dependsOn && <small className="project-dependency">После: {data.tasks.find(item => item.id === task.dependsOn)?.title ?? "связанной задачи"}</small>}</span>{projectTasks.filter(child => child.parentId === task.id).length > 0 && <div className="project-tree-children">{projectTasks.filter(child => child.parentId === task.id).map(child => <div key={child.id}><span className={`task-tree-mark ${child.status === "done" ? "done" : ""}`} /><button type="button" className="project-task-edit text-button" onClick={() => setEditingTask(child)}>{child.title}</button></div>)}</div>}</div>)}{stageTasks.length === 0 && <small className="muted">Здесь появятся задачи</small>}</div>;
                 })}
               </section>
               <div className="action-row" style={{ marginTop: 16 }}>
@@ -158,6 +173,19 @@ export default function Projects() {
       </section>
 
       {newProject && <NewProjectModal data={data} onClose={() => setNewProject(false)} />}
+      {paymentProject && <QuickAdd key={paymentProject.id} kind="income" initialProjectId={paymentProject.id} data={data} onClose={() => setPaymentProject(null)} />}
+      {newTask && <QuickAdd key={`${newTask.projectId}:${newTask.stageId ?? ""}`} kind="task" initialProjectId={newTask.projectId} initialStageId={newTask.stageId} data={data} onClose={() => setNewTask(null)} />}
+      {editingTask && <TaskEditor key={editingTask.id} task={editingTask} data={data} onClose={() => setEditingTask(null)} onSave={input => updateTask.mutate(input)} onSubtaskToggle={toggleTask} onAddSubtask={async (parent, title) => { await moduleMutation("planner.tasks.create", { id: crypto.randomUUID(), title, parentId: parent.id, projectId: parent.projectId, stageId: parent.stageId, workspaceId: parent.workspaceId, due: parent.due }); await refresh(); }} pending={updateTask.isPending} />}
+      {editingProject && <RecordForm title="Редактировать проект" initial={editingProject} fields={[
+        { key: "name", label: "Название", required: true },
+        { key: "type", label: "Тип проекта", options: options(projectTypeLabel), required: true },
+        { key: "status", label: "Статус", options: options({ active: "В работе", paused: "Пауза", done: "Завершён" }), required: true },
+        { key: "deadline", label: "Срок сдачи", type: "date" },
+        { key: "expectedIncome", label: `Плановая сумма, ${data.settings?.currency ?? "TJS"}`, type: "money", hint: "Это ориентир проекта. Реальную ожидаемую оплату добавляйте через «Ожидаемая оплата»." },
+        { key: "nextStep", label: "Ближайший шаг", type: "textarea" },
+        { key: "dailyMinutesGoal", label: "Минут в день", type: "number" },
+        { key: "weeklyMinutesGoal", label: "Минут в неделю", type: "number" },
+      ]} schema={projectUpdateSchema} onClose={() => setEditingProject(null)} onSave={async value => { await updateProject.mutateAsync(projectUpdateSchema.parse(value)); await refresh(); }} />}
       {timerOpen && timerProject && <TimerModal project={timerProject} data={data} onProjectChange={setTimerProject} onClose={() => setTimerOpen(false)} onStart={(input) => startTimer.mutate(input)} onStop={() => stopTimer.mutate()} pending={startTimer.isPending || stopTimer.isPending} />}
     </div>
   );

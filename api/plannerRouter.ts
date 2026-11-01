@@ -1,5 +1,7 @@
 import { lockPlanning, assertSharedSlot } from "./sharing";
 import { occupiedOnDay, remainingMinutes, isStandaloneTask, undoBelongsToEpoch } from "../contracts/plannerState";
+import { paymentFields, splitPayments, assertPaymentKind } from "../contracts/payments";
+import { projectUpdateSchema } from "../contracts/projects";
 import { users, workspaces } from "../db/accounts";
 import { scheduleForDay } from "../contracts/schedule";
 import { TRPCError } from "@trpc/server";
@@ -136,7 +138,8 @@ export const plannerRouter = createRouter({
       schedule: active(scheduleRows),
       scheduleExceptions: active(await db.select().from(scheduleExceptions).where(visible(scheduleExceptions))),
       timeLogs: active(timeRows),
-      transactions: active(transactionRows),
+      transactions: splitPayments(active(transactionRows)).posted,
+      pendingTransactions: splitPayments(active(transactionRows)).pending,
       journal: active(journalRows),
       settings: settingsRows[0] ?? null,
       scheduledBlocks: active(blockRows),
@@ -218,7 +221,7 @@ export const plannerRouter = createRouter({
           await requireScheduleLink(tx, scheduleItemId, workspaceId);
           if (input.parentId === id || dependencyHasCycle(rows, id, input.dependsOn ?? null)) throw new TRPCError({ code: "BAD_REQUEST", message: "Связь создаёт цикл" });
           let stageId = input.stageId ?? null;
-          if (input.projectId && !stageId) {
+          if (input.projectId && input.stageId === undefined) {
             const [firstStage] = await tx.select({ id: stages.id }).from(stages).where(and(visible(stages), eq(stages.projectId, input.projectId), eq(stages.isDeleted, false))).orderBy(stages.position).limit(1);
             stageId = firstStage?.id ?? null;
           }
@@ -335,14 +338,7 @@ export const plannerRouter = createRouter({
         return { id };
       }),
     update: protectedQuery
-      .input(z.object({
-        id: z.string().min(1).max(36),
-        name: z.string().trim().min(1).max(160).optional(),
-        status: z.enum(["active", "paused", "done"]).optional(),
-        nextStep: z.string().max(2000).nullable().optional(),
-        dailyMinutesGoal: z.number().int().min(0).max(1440).optional(),
-        weeklyMinutesGoal: z.number().int().min(0).max(10080).optional(),
-      }))
+      .input(projectUpdateSchema)
       .mutation(async ({ input }) => {
         const { id, ...values } = input;
         await getDb().update(projects).set({ ...values, updatedAt: new Date() }).where(and(visible(projects), eq(projects.id, id)));
@@ -380,6 +376,7 @@ export const plannerRouter = createRouter({
   money: createRouter({
     add: protectedQuery
       .input(z.object({
+        ...paymentFields.shape,
         id: z.string().uuid().optional(),
         kind: z.enum(["expense", "income"]),
         amount: z.number().int().positive().max(100_000_000),
@@ -391,11 +388,20 @@ export const plannerRouter = createRouter({
       }))
       .mutation(async ({ input }) => {
         const id = input.id ?? crypto.randomUUID();
+        try { assertPaymentKind(input.kind, input.status); } catch (cause) { throw new TRPCError({ code: "BAD_REQUEST", message: "Ожидание доступно только для дохода", cause }); }
         await assertRetryOwner(getDb(), transactions, id);
         if (input.projectId) await requireProject(getDb(), input.projectId);
         await getDb().insert(transactions).values(owned({ ...input, id, happenedAt: input.happenedAt ?? new Date() })).onDuplicateKeyUpdate({ set: { id: sql`id` } });
         return { id };
       }),
+    setStatus: protectedQuery.input(idInput.extend({ status: z.enum(["posted", "pending"]) })).mutation(async ({ input }) => getDb().transaction(async tx => {
+      await lockPlanning(tx);
+      const [row] = await tx.select().from(transactions).where(and(privateScope(transactions), eq(transactions.id, input.id), eq(transactions.isDeleted, false))).for("update");
+      if (!row || row.kind !== "income") throw new TRPCError({ code: "NOT_FOUND", message: "Доход не найден" });
+      if (row.status === input.status) return { ok: true };
+      await tx.update(transactions).set({ status: input.status, ...(input.status === "posted" ? { happenedAt: new Date() } : {}), updatedAt: new Date() }).where(and(privateScope(transactions), eq(transactions.id, input.id)));
+      return { ok: true };
+    })),
     remove: protectedQuery.input(idInput).mutation(async ({ input }) => {
       await getDb().update(transactions).set({ isDeleted: true, updatedAt: new Date() }).where(and(visible(transactions), eq(transactions.id, input.id)));
       return { ok: true };

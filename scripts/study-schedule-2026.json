@@ -1,0 +1,1132 @@
+[
+  {
+    "onDate": "2026-11-02",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "4250f34e-9692-41f2-8316-874aa64e26aa"
+  },
+  {
+    "onDate": "2026-11-02",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "4a0f54af-5382-4f0a-8761-a9b88331fb11"
+  },
+  {
+    "onDate": "2026-11-02",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Запись в Корео",
+    "kind": "work",
+    "startMin": 540,
+    "endMin": 600,
+    "id": "37f82c39-0d25-466a-86b0-2089a4688675"
+  },
+  {
+    "onDate": "2026-11-03",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "44c2a301-c46a-4548-8aac-da626c7b690a"
+  },
+  {
+    "onDate": "2026-11-03",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "1e12ad0c-7009-4958-8f9c-2891d181d6ef"
+  },
+  {
+    "onDate": "2026-11-04",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "ec2cbd4a-e319-4308-86f3-532123902d72"
+  },
+  {
+    "onDate": "2026-11-04",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "3e4506a1-a4cf-4da1-85dc-0f4cd130e3a2"
+  },
+  {
+    "onDate": "2026-11-05",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "6aa722c3-03cc-4194-8844-f0e25fd987f9"
+  },
+  {
+    "onDate": "2026-11-05",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "6d2bf9c5-c600-43be-8514-434e5313f501"
+  },
+  {
+    "onDate": "2026-11-06",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "b662269e-5616-403d-8a1f-b376c7dabcfa"
+  },
+  {
+    "onDate": "2026-11-06",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "471d3a54-5846-4f44-8644-43b8fa4b9bd0"
+  },
+  {
+    "onDate": "2026-11-07",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "c05c4083-2703-4bd9-8a16-a6bbe1c9da11"
+  },
+  {
+    "onDate": "2026-11-07",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "52c18150-fc5f-43ce-8556-db88e04319c7"
+  },
+  {
+    "onDate": "2026-11-09",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "9983ffc7-2a41-4164-80de-4fc195cf00ec"
+  },
+  {
+    "onDate": "2026-11-09",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "d736333b-5683-4bde-85ef-427719c1c729"
+  },
+  {
+    "onDate": "2026-11-09",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Запись в Корео",
+    "kind": "work",
+    "startMin": 540,
+    "endMin": 600,
+    "id": "5357e233-00dc-4147-82c8-a40287c0568f"
+  },
+  {
+    "onDate": "2026-11-10",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "2af97987-88ac-4147-85af-c809d814bc29"
+  },
+  {
+    "onDate": "2026-11-10",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "075d4ac5-3ca6-4d4b-83a8-edc72418a0bb"
+  },
+  {
+    "onDate": "2026-11-11",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "2572356b-da2e-4629-8679-febe5bca8f32"
+  },
+  {
+    "onDate": "2026-11-11",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "46788201-f401-4e33-80ab-0adf29dc65fa"
+  },
+  {
+    "onDate": "2026-11-12",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "27e83903-7d8a-4dcc-885b-0931fa3dc716"
+  },
+  {
+    "onDate": "2026-11-12",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "f597cfaa-6ea0-4b91-8929-366ac1b9d96f"
+  },
+  {
+    "onDate": "2026-11-13",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "321692a1-925d-4909-8dca-1840523a8b94"
+  },
+  {
+    "onDate": "2026-11-13",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "3827ad3b-dfa3-4c10-8155-9b738ceccc1f"
+  },
+  {
+    "onDate": "2026-11-14",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "31dada4e-ce97-4bb2-8bbe-073b6eb34af4"
+  },
+  {
+    "onDate": "2026-11-14",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "175270ee-0822-49b3-861a-971092c69bae"
+  },
+  {
+    "onDate": "2026-11-16",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "0e9ab897-65c5-4b4c-8abb-78319819a6ed"
+  },
+  {
+    "onDate": "2026-11-16",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "42338e55-8b7d-4e2b-8790-2a6c6c8b9238"
+  },
+  {
+    "onDate": "2026-11-16",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Запись в Корео",
+    "kind": "work",
+    "startMin": 540,
+    "endMin": 600,
+    "id": "c89db493-bb87-4318-849b-118ca4a30ad2"
+  },
+  {
+    "onDate": "2026-11-17",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "323eb6f8-a2b2-4d60-8b62-f07ad1b3d514"
+  },
+  {
+    "onDate": "2026-11-17",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "be155fc7-1fdd-4a3d-8943-32574d55fbdb"
+  },
+  {
+    "onDate": "2026-11-18",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "71c44b08-b89b-4247-8047-bc9f81d7dbde"
+  },
+  {
+    "onDate": "2026-11-18",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "bf539470-0b54-4b3d-8f04-fc115f366345"
+  },
+  {
+    "onDate": "2026-11-19",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "5367153b-b83e-45c6-83a6-40eda7cc1b7e"
+  },
+  {
+    "onDate": "2026-11-19",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "6f23a670-edcf-44e0-8d3d-7fac5613d267"
+  },
+  {
+    "onDate": "2026-11-20",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "ffe5dcab-5b56-4729-898b-88cb1c89f855"
+  },
+  {
+    "onDate": "2026-11-20",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "f92c801c-021f-448d-8b61-2b816229ae44"
+  },
+  {
+    "onDate": "2026-11-21",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "2bc8c315-381f-4459-849f-e613a28f3bb4"
+  },
+  {
+    "onDate": "2026-11-21",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "dafeace2-2799-40d2-81dd-601303d3ff17"
+  },
+  {
+    "onDate": "2026-11-23",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "1eb6e900-7eff-410a-8ccd-ed2e09621eab"
+  },
+  {
+    "onDate": "2026-11-23",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "783ee54a-de90-4165-8e0a-4bbe3cbe1e17"
+  },
+  {
+    "onDate": "2026-11-23",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Запись в Корео",
+    "kind": "work",
+    "startMin": 540,
+    "endMin": 600,
+    "id": "b7b49f48-e177-49d9-87c3-06c20c4f28d1"
+  },
+  {
+    "onDate": "2026-11-24",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "0115d159-30b8-474d-8685-1e550fea196d"
+  },
+  {
+    "onDate": "2026-11-24",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "f81ad3dd-161b-4484-8e88-35fb60bcb5bf"
+  },
+  {
+    "onDate": "2026-11-25",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "a6e2165b-74c9-48a6-852f-b2086bb6469d"
+  },
+  {
+    "onDate": "2026-11-25",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "8b5aa60e-6597-4ea5-82a5-c8910e329dc5"
+  },
+  {
+    "onDate": "2026-11-26",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "a9b8f0fe-0195-48eb-8e5a-74d0a94b368e"
+  },
+  {
+    "onDate": "2026-11-26",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "6459e85e-10ad-479a-8d8d-a754e1118106"
+  },
+  {
+    "onDate": "2026-11-27",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "065156da-166e-49d9-8398-e3086f72abd6"
+  },
+  {
+    "onDate": "2026-11-27",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "a68c1b37-e82a-41c2-8b6a-011d5b098ae3"
+  },
+  {
+    "onDate": "2026-11-28",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "c9c190ae-640f-4ce1-8853-606bb75ca3ec"
+  },
+  {
+    "onDate": "2026-11-28",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "b276cc76-c3f0-449f-80f7-bdeb732a9050"
+  },
+  {
+    "onDate": "2026-11-30",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "bf04eb3e-9288-4526-8e8c-90c0ca81da72"
+  },
+  {
+    "onDate": "2026-11-30",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "f8612a74-7b65-4651-8978-3b8156b6f490"
+  },
+  {
+    "onDate": "2026-11-30",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Запись в Корео",
+    "kind": "work",
+    "startMin": 540,
+    "endMin": 600,
+    "id": "602ee061-1d79-41f3-8363-d52bb49357f9"
+  },
+  {
+    "onDate": "2026-12-01",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "316243b4-5e68-4bf4-80de-8e69bc30bed0"
+  },
+  {
+    "onDate": "2026-12-01",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "c606fa9f-4715-4c25-8c63-972335d0488f"
+  },
+  {
+    "onDate": "2026-12-02",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "e515ec38-d3e8-4b1e-8a13-7c7b86613567"
+  },
+  {
+    "onDate": "2026-12-02",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "8629c5ab-9267-48b4-8395-a96b09fef245"
+  },
+  {
+    "onDate": "2026-12-03",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "aaf16d74-1df6-42ed-8ab1-e85d75bccb44"
+  },
+  {
+    "onDate": "2026-12-03",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "786e64c4-af58-4908-8a3d-6a13b6fed7e4"
+  },
+  {
+    "onDate": "2026-12-04",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "f2eb6dba-c358-4699-805d-8296f9f638cb"
+  },
+  {
+    "onDate": "2026-12-04",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "48072368-10f8-48e7-8fdb-dd05f7c962b6"
+  },
+  {
+    "onDate": "2026-12-05",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "267916ea-3f41-4730-8bb4-589b5929a1e3"
+  },
+  {
+    "onDate": "2026-12-05",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "d877e4c1-6a90-4fb4-866d-be50dfd863d5"
+  },
+  {
+    "onDate": "2026-12-07",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "e5df7c2c-fcf0-4573-81e1-8a28a33d4eef"
+  },
+  {
+    "onDate": "2026-12-07",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "6b0ef082-5c0d-49a2-8536-60ce38013131"
+  },
+  {
+    "onDate": "2026-12-07",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Запись в Корео",
+    "kind": "work",
+    "startMin": 540,
+    "endMin": 600,
+    "id": "1054e742-d0b2-4a2b-8c5d-036d5def44be"
+  },
+  {
+    "onDate": "2026-12-08",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "0404aac4-51fb-4479-8ff2-07631e80e346"
+  },
+  {
+    "onDate": "2026-12-08",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "bc42a6d6-6fb4-47a6-8347-77ace7b4183f"
+  },
+  {
+    "onDate": "2026-12-09",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "a095b34c-b943-4db1-8c44-8a7eff0b45c4"
+  },
+  {
+    "onDate": "2026-12-09",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "f598d66d-9fa7-4d6c-8e60-17a0d6f44483"
+  },
+  {
+    "onDate": "2026-12-10",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "64d4b3b6-81b4-406e-8005-9d64656e585c"
+  },
+  {
+    "onDate": "2026-12-10",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "0aaa4f11-f3c8-4e8f-8a54-df1c15d6692a"
+  },
+  {
+    "onDate": "2026-12-11",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "c80d7580-b038-4c3b-893b-7c90bf32af25"
+  },
+  {
+    "onDate": "2026-12-11",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "615a30f5-4783-4b12-8492-4224b5d41860"
+  },
+  {
+    "onDate": "2026-12-12",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "bf3effbc-92b6-481c-8421-541a6e7eb331"
+  },
+  {
+    "onDate": "2026-12-12",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "aef03939-f7dc-4ade-8a01-12c01e51c4d5"
+  },
+  {
+    "onDate": "2026-12-14",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "615d1ceb-4ac9-4e96-8591-e8b4519bd17e"
+  },
+  {
+    "onDate": "2026-12-14",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "775b8574-e242-489b-8ee7-555b0331db7d"
+  },
+  {
+    "onDate": "2026-12-14",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Запись в Корео",
+    "kind": "work",
+    "startMin": 540,
+    "endMin": 600,
+    "id": "83f3a12c-0dc1-4592-8d29-172995048f85"
+  },
+  {
+    "onDate": "2026-12-15",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "749f4ba5-82f4-4fbc-88ea-5aa125d11d99"
+  },
+  {
+    "onDate": "2026-12-15",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "2614bdd8-cf7d-4f0f-8620-edd47c502390"
+  },
+  {
+    "onDate": "2026-12-16",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "1a34fc05-7e23-4701-84aa-810db1584b14"
+  },
+  {
+    "onDate": "2026-12-16",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "3e8403ed-398f-4569-87f2-61bcfdee98d0"
+  },
+  {
+    "onDate": "2026-12-17",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "24d56982-c57b-4240-8a85-7be48e51229d"
+  },
+  {
+    "onDate": "2026-12-17",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "d0d65af1-55ff-4855-8389-bb45f37c7b57"
+  },
+  {
+    "onDate": "2026-12-18",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "7c61ec8f-6cc5-41d6-8d33-4d6f67e08b30"
+  },
+  {
+    "onDate": "2026-12-18",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "d6e879f7-0811-4780-8521-c0560be038b5"
+  },
+  {
+    "onDate": "2026-12-19",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "aa2e2b28-a972-48b3-8913-c0ee71728afc"
+  },
+  {
+    "onDate": "2026-12-19",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "6af03073-0bb5-4065-89e4-2fbc79d6c671"
+  },
+  {
+    "onDate": "2026-12-21",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "dc43c965-2fc0-476d-89fa-996f9c0a5c86"
+  },
+  {
+    "onDate": "2026-12-21",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "41e54a2c-44d2-4e48-8a09-19dcf71c7f41"
+  },
+  {
+    "onDate": "2026-12-21",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Запись в Корео",
+    "kind": "work",
+    "startMin": 540,
+    "endMin": 600,
+    "id": "e8d40640-02bc-4688-828a-63d9dcaa2a6e"
+  },
+  {
+    "onDate": "2026-12-22",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "0f2f4c1c-a57a-4cfe-8567-29d63d5643b6"
+  },
+  {
+    "onDate": "2026-12-22",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "720720cc-fde3-4b6e-8f1b-1fa68d0c1729"
+  },
+  {
+    "onDate": "2026-12-23",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "3dc9c705-9796-4f81-8613-95ac3040f095"
+  },
+  {
+    "onDate": "2026-12-23",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "e222f7e8-8694-4a69-8406-419123423185"
+  },
+  {
+    "onDate": "2026-12-24",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "bc6b8ecb-fab3-43a6-8115-af7fef1cb053"
+  },
+  {
+    "onDate": "2026-12-24",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "09fbf28f-e79d-4125-8b09-c5a11c0a9cc9"
+  },
+  {
+    "onDate": "2026-12-25",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "fc744ab8-9b48-4fc6-8184-f0e796bd9732"
+  },
+  {
+    "onDate": "2026-12-25",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "81f9d5c2-5e3a-4493-8338-9c914dc539e5"
+  },
+  {
+    "onDate": "2026-12-26",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "72a17552-c82d-450c-81a3-4d20ddeb168e"
+  },
+  {
+    "onDate": "2026-12-26",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "be367559-6ce7-4aa3-86f1-80941b8bae15"
+  },
+  {
+    "onDate": "2026-12-28",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "ca09857c-fa70-4630-8bf6-91233dc109b2"
+  },
+  {
+    "onDate": "2026-12-28",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "68c2162b-cce0-4490-85a1-d1e5d759e904"
+  },
+  {
+    "onDate": "2026-12-28",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Запись в Корео",
+    "kind": "work",
+    "startMin": 540,
+    "endMin": 600,
+    "id": "71a6d7b5-1fd8-4820-8a70-8021f4849ad8"
+  },
+  {
+    "onDate": "2026-12-29",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "d096a428-8255-42ed-89cd-7abbc14763d5"
+  },
+  {
+    "onDate": "2026-12-29",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "84eb2817-a2a1-480a-8a6a-5ebbc96b80f8"
+  },
+  {
+    "onDate": "2026-12-30",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "3b4b3b75-120a-4cb9-8347-16709953b7c6"
+  },
+  {
+    "onDate": "2026-12-30",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "0a330ecd-5e67-4be9-88a6-7eb368f22a99"
+  },
+  {
+    "onDate": "2026-12-31",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 480,
+    "endMin": 710,
+    "id": "40b8e45a-bd1d-4f4f-8611-4a784aee651b"
+  },
+  {
+    "onDate": "2026-12-31",
+    "weekdays": "1,2,3,4,5,6",
+    "weekParity": "all",
+    "title": "Пара",
+    "kind": "class",
+    "startMin": 780,
+    "endMin": 1010,
+    "id": "969c51bd-4c0d-4f99-8d44-fa00d5224f9e"
+  }
+]

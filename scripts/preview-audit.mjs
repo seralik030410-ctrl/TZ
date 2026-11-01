@@ -22,9 +22,12 @@ const data = {
   recurringBills: ["Интернет", "Коммунальные услуги", "Аренда квартиры"].map((name, i) => ({ ...base, id: uid(50+i), name, amount: [15000,25000,200000][i], currency: "TJS", dueDay: i+5, category: "Обязательные платежи", paidThrough: null })),
   settings: { ...base, id: uid(1), name: "Тестовый профиль", currency: "TJS", dailyLimit: 100000, monthlyLimit: 2000000, workStartMin: 480, workEndMin: 1320, theme: "light", autoReflow: false, cushion: 100000, monthlySavings: 50000, timezone: "Asia/Dushanbe", agencyEnabled: true, goldEnabled: true, debtsEnabled: true, agencyGoal: 1000000, agencyGoalCurrency: "TJS", taskEpoch: 0 },
 };
-const queries = { "planner.auth.status": { authenticated: true, user: data.user, workspaces: [] }, "planner.bootstrap": data, "routines.list": { templates: [], closures: [] }, "sharing.busy": [], "taskArchive.list": [], "taskArchive.preview": { revision: "0".repeat(64), personalCount: 3, blockCount: 1, sharedPreservedCount: 0, routinesPreservedCount: 6, conflicts: [] } };
+data.workspaces = [{ id: uid(70), name: "Совместная проверка" }];
+data.projects.push({ ...data.projects[0], id: uid(71), name: "Общий проект", workspaceId: uid(70) });
+data.pendingTransactions = [{ ...data.transactions[0], id: uid(90), status: "pending", expectedOn: "2026-11-03", amount: 250000, note: "После сдачи аватаров" }];
+const queries = { "planner.auth.status": { authenticated: true, user: data.user, workspaces: data.workspaces }, "planner.bootstrap": data, "routines.list": { templates: [], closures: [] }, "sharing.busy": [], "taskArchive.list": [], "taskArchive.preview": { revision: "0".repeat(64), personalCount: 3, blockCount: 1, sharedPreservedCount: 0, routinesPreservedCount: 6, conflicts: [] } };
 queries["agency.list"] = { deals: [], payments: [], visas: [], flights: [] };
-queries["gold.list"] = { trades: [], rules: [], overrides: [] };
+queries["gold.list"] = { trades: [{ ...base, id: uid(80), date: now.toISOString(), closedAt: now.toISOString(), direction: null, instrument: "XAU/USD", size: null, entry: null, exit: null, result: 2500, commission: 0, currency: "USD", reason: "", state: "not_recorded", comment: "Тестовый быстрый результат", status: "closed", riskPercent: null }], rules: [], overrides: [], transfers: [], balances: [] };
 queries["debts.list"] = { debts: [], payments: [] };
 const mime = { ".html": "text/html; charset=utf-8", ".js": "application/javascript", ".css": "text/css", ".woff2": "font/woff2", ".svg": "image/svg+xml" };
 createServer(async (req, res) => {

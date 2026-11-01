@@ -1,6 +1,12 @@
 import { z } from "zod";
 import { uuid, title, note, money, currencyCode, calendarDate, decimalValue, dayInZone, live } from "./shared";
 export const tradeSchema = z.object({ id: uuid, date: z.iso.datetime({ offset: true }), closedAt: z.iso.datetime({ offset: true }).nullable().default(null), direction: z.enum(["buy", "sell"]).nullable().default(null), instrument: title.default("XAU/USD"), size: decimalValue.refine(v => Number(v) > 0).nullable().default(null), entry: decimalValue.nullable().default(null), exit: decimalValue.nullable().default(null), result: z.number().int().min(-2_000_000_000).max(2_000_000_000), commission: money.default(0), currency: currencyCode, reason: z.string().max(180).default(""), state: z.enum(["calm", "rush", "tilt", "not_recorded"]).default("not_recorded"), comment: note, status: z.enum(["open", "closed"]), riskPercent: decimalValue.refine(v => Number(v) <= 100).nullable().default(null) }).superRefine((trade, context) => { if (trade.status === "open") for (const key of ["direction", "size", "entry", "riskPercent"] as const) if (!trade[key]) context.addIssue({ code: "custom", path: [key], message: "Нужно указать для открытой сделки" }); });
+export const tradeFormSchema = z.preprocess(value => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return value;
+  const row = { ...value } as Record<string, unknown>;
+  for (const key of ["direction", "size", "entry", "exit", "riskPercent"]) if (row[key] === "") row[key] = null;
+  return row;
+}, tradeSchema);
 export const transferSchema = z.object({ id: uuid, type: z.enum(["deposit", "withdrawal"]), amount: money.positive(), currency: currencyCode, date: calendarDate, note });
 export const balanceSchema = z.object({ id: uuid, date: calendarDate, amount: money, currency: currencyCode });
 export const rulesSchema = z.object({ id: uuid, currency: currencyCode, dailyLoss: money.positive(), dailyGoal: money, maxTrades: z.number().int().min(1).max(1000), maxRiskPercent: decimalValue.refine(v => Number(v) > 0 && Number(v) <= 100), pauseAfter: z.number().int().min(1).max(100), pauseMinutes: z.number().int().min(1).max(10080), phrase: z.string().min(4).max(100).optional() });

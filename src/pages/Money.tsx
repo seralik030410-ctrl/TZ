@@ -13,6 +13,7 @@ export default function Money() {
   const { openQuickAdd } = context;
   const data = { ...context.data, transactions: context.data.transactions.filter(t => t.currency === normalizeCurrency(context.data.settings?.currency)) };
   const utils = trpc.useUtils();
+  const paymentStatus = trpc.planner.money.setStatus.useMutation({ onSuccess: () => utils.planner.bootstrap.invalidate(), onError: e => toast.error(e.message) });
   const [filter, setFilter] = useState<"all" | "expense" | "income">("all");
   const currency = data.settings?.currency ?? "TJS";
   const today = localDayKey();
@@ -81,6 +82,18 @@ export default function Money() {
 
       <div style={{ marginTop: 14 }}><RecurringBills data={data} /></div>
 
+      <section className="card" style={{ marginTop: 18 }}>
+        <div className="section-title" style={{ marginTop: 0 }}><h2>Ожидаемая оплата</h2><span className="badge">{formatMoney((data.pendingTransactions ?? []).filter(t => t.currency === currency).reduce((sum, t) => sum + t.amount, 0), currency)}</span></div>
+        <p className="small muted">Эти деньги ещё не получены и не входят в доходы или доступный бюджет. После сдачи проекта отметьте фактическое получение.</p>
+        <div className="plain-list">{(data.pendingTransactions ?? []).filter(t => t.currency === currency).map(t => <div className="list-row" key={t.id}>
+          <div className="list-row-main"><strong>{t.note || data.projects.find(p => p.id === t.projectId)?.name || t.category}</strong><span>{t.expectedOn ? `Ожидается ${t.expectedOn}` : "После сдачи / по договорённости"}{t.projectId ? ` · ${data.projects.find(p => p.id === t.projectId)?.name ?? "Проект"}` : ""}</span></div>
+          <strong className="list-row-value">{formatMoney(t.amount, t.currency)}</strong>
+          <button className="button button-primary button-small" disabled={paymentStatus.isPending} onClick={() => paymentStatus.mutate({ id: t.id, status: "posted" })}>Деньги получены</button>
+          <button className="icon-button" aria-label="Архивировать ожидаемую оплату" onClick={() => { if (window.confirm("Убрать ожидаемую оплату в архив?")) remove.mutate({ id: t.id }); }}><Trash2 size={15} /></button>
+        </div>)}</div>
+        {!(data.pendingTransactions ?? []).some(t => t.currency === currency) && <p className="small muted">Ожидаемых оплат пока нет. При добавлении дохода выберите «Ожидаю оплату после сдачи».</p>}
+      </section>
+
       <div className="dashboard-grid" style={{ marginTop: 14 }}>
         <section className="card span-7">
           <div className="section-title" style={{ marginTop: 0 }}><div><p className="eyebrow">Последние 7 дней</p><h2>Движение денег</h2></div><div className="legend-row"><span className="dot" />Траты <span className="dot" style={{ background: "var(--success)" }} />Доходы</div></div>
@@ -124,6 +137,7 @@ export default function Money() {
               <span style={{ color: transaction.kind === "expense" ? "var(--danger)" : "var(--success)" }}>{transaction.kind === "expense" ? <ArrowUpRight size={19} /> : <ArrowDownLeft size={19} />}</span>
               <div className="list-row-main"><strong>{transaction.note || transaction.category}</strong><span>{transaction.category} · {new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(transaction.happenedAt)}</span></div>
               <span className={`list-row-value transaction-amount ${transaction.kind}`}>{transaction.kind === "expense" ? "−" : "+"}{formatMoney(transaction.amount, currency)}</span>
+              {transaction.kind === "income" && <button className="text-button" disabled={paymentStatus.isPending} onClick={() => paymentStatus.mutate({ id: transaction.id, status: "pending" })}>Ещё не получено</button>}
               <button className="icon-button" type="button" onClick={() => { if (window.confirm("Архивировать эту операцию?")) remove.mutate({ id: transaction.id }); }} aria-label="Архивировать операцию"><Trash2 size={15} /></button>
             </div>
           ))}

@@ -1,0 +1,118 @@
+// Only an isolated local MariaDB is allowed. Does not read .env or production data.
+import mysql from "mysql2/promise";
+import type { RowDataPacket } from "mysql2/promise";
+import { execFileSync, spawn } from "node:child_process";
+import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
+import superjson from "superjson";
+import assert from "node:assert/strict";
+import { hashPassword, signAccountSession } from "../api/lib/accountSecurity";
+
+const adminOptions = { host: "127.0.0.1", port: 3307, user: "root", password: process.env.LOCAL_DB_PASSWORD ?? "ritm_local_test" };
+const dbName = `ritm_payments_${Date.now()}`;
+const admin = await mysql.createConnection(adminOptions);
+await admin.query(`CREATE DATABASE ${dbName} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
+const db = await mysql.createConnection({ ...adminOptions, database: dbName });
+const secret = "isolated-payment-smoke-secret-only";
+const env = { ...process.env, NODE_ENV: "production", PORT: "4319", APP_SECRET: secret, PLANNER_PASSWORD: "local-owner-password", DATABASE_URL: `mysql://root:${encodeURIComponent(adminOptions.password)}@127.0.0.1:3307/${dbName}` };
+const owner = "00000000-0000-4000-8000-000000000001";
+type Snapshot = { projects: { id: string; name: string; expectedIncome: number; deadline: string | null }[]; tasks: { id: string; title: string; stageId: string | null }[]; transactions: { id: string; amount: number }[]; pendingTransactions: { id: string; amount: number }[] };
+let server: ReturnType<typeof spawn> | undefined;
+try {
+  for (let i = 0; i < 2; i++) execFileSync(process.execPath, ["scripts/migrate.mjs"], { env, stdio: "pipe" });
+  console.log("PASS migration and migration replay on isolated local database");
+  for (let i = 0; i < 2; i++) execFileSync(process.execPath, ["scripts/seed-schedule-508.mjs"], { env, stdio: "pipe" });
+  const [schedule] = await db.query<(RowDataPacket & { kind: string; on_date: string; start_min: number; end_min: number })[]>("SELECT kind,on_date,start_min,end_min FROM schedule_items WHERE owner_id=? AND is_deleted=0", [owner]);
+  assert.equal(schedule.filter(row => row.kind === "class").length, 104);
+  assert.equal(schedule.filter(row => row.kind === "work").length, 9);
+  assert(schedule.every(row => new Date(row.on_date + "T12:00:00Z").getUTCDay() !== 0));
+  assert(schedule.filter(row => row.kind === "work").every(row => new Date(row.on_date + "T12:00:00Z").getUTCDay() === 1 && row.start_min === 540 && row.end_min === 600));
+  console.log("PASS timetable: 104 classes, no Sundays, nine Monday Koreo entries; seed replay unchanged");
+  const oldClass = randomUUID(), friendClass = randomUUID(), friendOwner = randomUUID();
+  await db.query("INSERT INTO schedule_items(id,owner_id,title,kind,start_min,end_min,weekdays,week_parity,on_date) VALUES (?,?,'Old Sunday class','class',480,710,'0','all','2026-11-01'), (?,?,'Friend class','class',480,710,'0','all','2026-11-01')", [oldClass, owner, friendClass, friendOwner]);
+  const mondayClass = randomUUID(), linkedTask = randomUUID(), sundayTask = randomUUID(), exception = randomUUID();
+  await db.query("INSERT INTO schedule_items(id,owner_id,title,kind,start_min,end_min,on_date) VALUES (?,?,'Old Monday class','class',480,710,'2026-11-02')", [mondayClass, owner]);
+  await db.query("INSERT INTO tasks(id,owner_id,title,schedule_item_id) VALUES (?,?,'Monday task',?),(?,?,'Sunday task',?)", [linkedTask, owner, mondayClass, sundayTask, owner, oldClass]);
+  await db.query("INSERT INTO schedule_exceptions(id,owner_id,item_id,date,action) VALUES (?,?,?,'2026-11-02','cancel')", [exception, owner, mondayClass]);
+  for (const statement of readFileSync("db/migrations/0015_study_schedule_nov_dec.sql", "utf8").split("--> statement-breakpoint")) await db.query(statement);
+  const [preserved] = await db.query<(RowDataPacket & { id: string; is_deleted: number })[]>("SELECT id,is_deleted FROM schedule_items WHERE id IN (?,?)", [oldClass, friendClass]);
+  assert.equal(preserved.find(row => row.id === oldClass)?.is_deleted, 1);
+  assert.equal(preserved.find(row => row.id === friendClass)?.is_deleted, 0);
+  const [[linked]] = await db.query<(RowDataPacket & { schedule_item_id: string | null; due: string })[]>("SELECT schedule_item_id,due FROM tasks WHERE id=?", [linkedTask]);
+  assert(linked.schedule_item_id && linked.schedule_item_id !== mondayClass);
+  assert.equal(linked.due, "2026-11-02");
+  const [[sunday]] = await db.query<(RowDataPacket & { schedule_item_id: string | null; due: string })[]>("SELECT schedule_item_id,due FROM tasks WHERE id=?", [sundayTask]);
+  assert.equal(sunday.schedule_item_id, null);
+  assert.equal(sunday.due, "2026-11-01");
+  const [[relinkedException]] = await db.query<(RowDataPacket & { item_id: string })[]>("SELECT item_id FROM schedule_exceptions WHERE id=?", [exception]);
+  assert.equal(relinkedException.item_id, linked.schedule_item_id);
+  console.log("PASS old classes retired, tasks/exceptions relinked, Sunday tasks retained, friend schedule preserved");
+  await db.query("INSERT INTO planner_users(id,name,password_hash) VALUES (?, 'Local owner', ?) ON DUPLICATE KEY UPDATE password_hash=VALUES(password_hash)", [owner, hashPassword("local-owner-password")]);
+  const workspace = randomUUID();
+  await db.query("INSERT INTO workspaces(id,name,owner_id) VALUES (?, 'Local shared test', ?)", [workspace, owner]);
+  await db.query("INSERT INTO workspace_members(id,workspace_id,user_id) VALUES (?, ?, ?)", [randomUUID(), workspace, owner]);
+  const cookie = `planner_session_v2=${signAccountSession({ userId: owner, version: 0, expiresAt: Date.now() + 3600000 }, secret)}`;
+  server = spawn(process.execPath, ["dist/boot.js"], { env, stdio: "pipe", windowsHide: true });
+  let serverError = "";
+  server.stderr?.on("data", data => { serverError += String(data).slice(-2000); });
+  const base = "http://127.0.0.1:4319/api/trpc/";
+  async function call(path: string, input?: unknown, query = false, session = cookie) {
+    const response = await fetch(base + path + (query && input !== undefined ? "?input=" + encodeURIComponent(JSON.stringify(superjson.serialize(input))) : ""), { method: query ? "GET" : "POST", headers: { "Content-Type": "application/json", Cookie: session }, ...(!query ? { body: JSON.stringify(superjson.serialize(input)) } : {}) });
+    const body = await response.json();
+    if (!response.ok || body.error) throw new Error(`${path}: ${body.error?.json?.message ?? response.status}`);
+    return { data: superjson.deserialize(body.result.data) as unknown, cookie: response.headers.get("set-cookie")?.split(";")[0] };
+  }
+  let ready = false;
+  for (let i = 0; i < 60; i++) {
+    try { const r = await fetch("http://127.0.0.1:4319/health"); if (r.ok) { ready = true; break; } } catch { /* local server booting */ }
+    await new Promise(resolve => setTimeout(resolve, 250));
+  }
+  assert(ready, `Local server did not start: ${serverError}`);
+  await call("planner.bootstrap", undefined, true);
+  const projectId = randomUUID();
+  await call("planner.projects.create", { id: projectId, name: "Expected avatar payment", type: "money" });
+  await call("planner.projects.update", { id: projectId, name: "Edited avatar project", expectedIncome: 300000, deadline: "2026-12-15" });
+  const stageId = randomUUID();
+  await call("planner.stages.create", { id: stageId, projectId, name: "Avatars" });
+  const taskId = randomUUID();
+  await call("planner.tasks.create", { id: taskId, projectId, stageId, title: "Create avatar" });
+  await call("planner.tasks.update", { id: taskId, title: "Edit avatar", estimateMin: 90 });
+  const edited = (await call("planner.bootstrap", undefined, true)).data as Snapshot;
+  assert(edited.projects.some(row => row.id === projectId && row.name === "Edited avatar project" && row.expectedIncome === 300000 && row.deadline === "2026-12-15"));
+  assert(edited.tasks.some(row => row.id === taskId && row.title === "Edit avatar" && row.stageId === stageId));
+  console.log("PASS editing project budget/deadline and creating/editing a task in its selected stage");
+  const id = randomUUID();
+  await call("planner.money.add", { id, kind: "income", amount: 250000, currency: "TJS", category: "Проекты", projectId, status: "pending", expectedOn: "2026-11-03" });
+  let snapshot = (await call("planner.bootstrap", undefined, true)).data as Snapshot;
+  assert(!snapshot.transactions.some(row => row.id === id));
+  assert(snapshot.pendingTransactions.some(row => row.id === id && row.amount === 250000));
+  console.log("PASS expected payment excluded from actual transactions");
+  await call("planner.money.setStatus", { id, status: "posted" });
+  const [[first]] = await db.query<(RowDataPacket & { happened_at: Date })[]>("SELECT happened_at FROM transactions WHERE id=?", [id]);
+  await call("planner.money.setStatus", { id, status: "posted" });
+  const [[second]] = await db.query<(RowDataPacket & { happened_at: Date })[]>("SELECT happened_at FROM transactions WHERE id=?", [id]);
+  assert.equal(first.happened_at.getTime(), second.happened_at.getTime());
+  snapshot = (await call("planner.bootstrap", undefined, true)).data as Snapshot;
+  assert.equal(snapshot.transactions.filter(row => row.id === id).length, 1);
+  assert(!snapshot.pendingTransactions.some(row => row.id === id));
+  console.log("PASS receipt and duplicate receipt are idempotent");
+  await call("planner.money.setStatus", { id, status: "pending" });
+  snapshot = (await call("planner.bootstrap", undefined, true)).data as Snapshot;
+  assert(!snapshot.transactions.some(row => row.id === id));
+  assert(snapshot.pendingTransactions.some(row => row.id === id));
+  await assert.rejects(() => call("planner.money.add", { kind: "expense", amount: 100, category: "Test", status: "pending" }));
+  console.log("PASS correcting mistaken receipt; pending expense rejected");
+  const invite = (await call("planner.auth.invite")).data as { token: string };
+  const friend = await call("planner.auth.register", { token: invite.token, name: "Local friend", password: "local-friend-password" });
+  assert(friend.cookie);
+  const friendData = (await call("planner.bootstrap", undefined, true, friend.cookie)).data as Snapshot;
+  assert(!friendData.pendingTransactions.some(row => row.id === id));
+  await assert.rejects(() => call("planner.money.setStatus", { id, status: "posted" }, false, friend.cookie));
+  await assert.rejects(() => call("planner.auth.register", { token: invite.token, name: "Duplicate", password: "another-local-password" }));
+  console.log("PASS invitation acceptance, single use, and private payment isolation");
+} finally {
+  server?.kill();
+  await db.end();
+  await admin.end();
+  console.log(`Local smoke database preserved: ${dbName}`);
+}

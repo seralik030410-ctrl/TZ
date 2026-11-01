@@ -1,3 +1,4 @@
+import { recordFieldValue } from "@contracts/recordForm";
 import type { Field } from "@/lib/moduleData";
 import { AppSelect, DateField } from "@/components/FormControls";
 import { useState, type ReactNode, type FormEvent } from "react";
@@ -26,7 +27,7 @@ export function RecordForm({ title, fields, initial, schema, onSave, onClose, on
     finally { setBusy(false); }
   };
   return <Modal title={title} onClose={onClose}><form className="form-grid module-form" onSubmit={submit}>
-    {fields.map(f => { const value = initial?.[f.key] ?? f.value ?? ""; const defaultValue = f.type === "datetime-local" && value ? `${dayInZone(new Date(String(value)), getUserTimezone())}T${minutesToTime(minutesInZone(new Date(String(value)), getUserTimezone()))}` : f.type === "money" && initial?.[f.key] != null ? String(Number(value) / 100) : f.type === "time" && value !== "" ? String(value).includes(":") ? String(value) : minutesToTime(Number(value)) : String(value); return <div className={`field ${f.type === "textarea" ? "field-wide" : ""}`} key={f.key}>
+    {fields.map(f => { const value = recordFieldValue(initial, f.key, f.value); const defaultValue = f.type === "datetime-local" && value ? `${dayInZone(new Date(String(value)), getUserTimezone())}T${minutesToTime(minutesInZone(new Date(String(value)), getUserTimezone()))}` : f.type === "money" && initial?.[f.key] != null ? String(Number(value) / 100) : f.type === "time" && value !== "" ? String(value).includes(":") ? String(value) : minutesToTime(Number(value)) : String(value); return <div className={`field ${f.type === "textarea" ? "field-wide" : ""}`} key={f.key}>
       <label htmlFor={`field-${f.key}`}>{f.label}</label>
       {f.options ? <AppSelect id={`field-${f.key}`} name={f.key} className="select" defaultValue={defaultValue} required={f.required}>{!f.required && <option value="">Не выбрано</option>}{f.options.map(o => <option value={o.value} key={o.value}>{o.label}</option>)}</AppSelect>
         : f.type === "textarea" ? <textarea id={`field-${f.key}`} name={f.key} className="textarea" defaultValue={defaultValue} />

@@ -137,6 +137,8 @@ export const timeLogs = mysqlTable("time_logs", {
 });
 
 export const transactions = mysqlTable("transactions", {
+  status: varchar("status", { length: 16 }).notNull().default("posted"),
+  expectedOn: varchar("expected_on", { length: 10 }),
   id: varchar("id", { length: 36 }).primaryKey(),
   kind: varchar("kind", { length: 16 }).notNull(),
   amount: int("amount").notNull(),

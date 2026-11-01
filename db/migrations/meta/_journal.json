@@ -99,6 +99,20 @@
       "when": 1793500000005,
       "tag": "0013_task_archive",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "5",
+      "when": 1793500000006,
+      "tag": "0014_pending_payments",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "5",
+      "when": 1793500000007,
+      "tag": "0015_study_schedule_nov_dec",
+      "breakpoints": true
     }
   ]
 }
