@@ -1,3 +1,4 @@
+import { isStandaloneTask, remainingMinutes } from "@contracts/plannerState";
 import { SharedAccess } from "@/components/SharedAccess";
 import { MonthNavigator } from "@/components/MonthNavigator";
 import { AppSelect, DateField } from "@/components/FormControls";
@@ -60,12 +61,11 @@ export default function Projects() {
     setTimerOpen(true);
   };
 
-  const planStage = (project: Project) => {
-    const stage = data.stages.find((item) => item.projectId === project.id && item.status === "active");
+  const planStage = (project: Project, stageId?: string) => {
+    const stage = data.stages.find((item) => item.projectId === project.id && item.status === "active" && (stageId ? item.id === stageId : data.tasks.some(t => (t.stageId === item.id || (!t.stageId && t.projectId === project.id)) && isStandaloneTask(t) && remainingMinutes(t, data.scheduledBlocks) > 0)));
     if (!stage) return toast.info("Сначала добавьте активный этап проекту");
     const openStageTasks = data.tasks.filter((task) => (task.stageId === stage.id || (!task.stageId && task.projectId === project.id)) && task.status !== "done");
-    const plannedIds = new Set(data.scheduledBlocks.filter(block => !block.isDeleted && block.status === "planned").map(block => block.taskId));
-    const count = openStageTasks.filter(task => !plannedIds.has(task.id)).length;
+    const count = openStageTasks.filter(task => isStandaloneTask(task) && remainingMinutes(task, data.scheduledBlocks) > 0).length;
     if (!count) return toast.info(openStageTasks.length ? "Все открытые задачи этапа уже стоят в расписании" : "В этом этапе нет открытых задач");
     if (window.confirm(`Разложить ${count} задач этапа «${stage.name}» по свободным окнам на 7 дней?`)) {
       autoPlan.mutate({ stageId: stage.id, startDate: today, days: 7 });
@@ -132,9 +132,9 @@ export default function Projects() {
               <div className="project-profit"><strong><TrendingUp size={14} />Финансы проекта</strong>{Object.entries(linkedMoney).length ? Object.entries(linkedMoney).map(([code, money]) => <span key={code}>Прибыль {formatMoney(money.income-money.expense, code)} <small>· доход {formatMoney(money.income, code)} / расходы {formatMoney(money.expense, code)}</small></span>) : <span>Пока нет операций · план {formatMoney(project.expectedIncome, data.settings?.currency)}</span>}</div>
               <section className="project-stage-tree"><div className="section-title"><strong>Этапы и задачи</strong><button className="text-button" type="button" onClick={() => { setStageFor(stageFor === project.id ? null : project.id); setStageName(""); }}>+ этап</button></div>
                 {stageFor === project.id && <form className="action-row stage-add-form" onSubmit={event => { event.preventDefault(); if (!stageName.trim()) return; createStage.mutate({ projectId: project.id, name: stageName.trim() }, { onSuccess: () => { setStageFor(null); setStageName(""); } }); }}><input autoFocus className="input" aria-label="Название нового этапа" placeholder="Например: Подготовка материалов" value={stageName} onChange={event => setStageName(event.target.value)} maxLength={160}/><button className="button button-ghost button-small" disabled={!stageName.trim() || createStage.isPending} type="submit">Добавить</button></form>}
-                {(stages.length ? stages : [{ id: "__unassigned", name: "Без этапа", position: 0 }]).map(stage => {
+                {([...stages, ...(projectTasks.some(t => !t.stageId) ? [{ id: "__unassigned", name: "Без этапа", position: 0 }] : [])]).map(stage => {
                   const stageTasks = projectTasks.filter(task => stage.id === "__unassigned" ? !task.stageId : task.stageId === stage.id);
-                  return <div className="project-stage" key={stage.id}><strong>{stage.name}</strong>{stageTasks.filter(task => !task.parentId).map(task => <div className="project-tree-task" key={task.id}><span className={`task-tree-mark ${task.status === "done" ? "done" : ""}`} /> <span>{task.title}{task.dependsOn && <small className="project-dependency">После: {data.tasks.find(item => item.id === task.dependsOn)?.title ?? "связанной задачи"}</small>}</span>{projectTasks.filter(child => child.parentId === task.id).length > 0 && <div className="project-tree-children">{projectTasks.filter(child => child.parentId === task.id).map(child => <div key={child.id}><span className={`task-tree-mark ${child.status === "done" ? "done" : ""}`} />{child.title}</div>)}</div>}</div>)}{stageTasks.length === 0 && <small className="muted">Здесь появятся задачи</small>}</div>;
+                  return <div className="project-stage" key={stage.id}><div className="section-title"><strong>{stage.name}</strong>{stage.id !== "__unassigned" && <button className="text-button" disabled={autoPlan.isPending} onClick={() => planStage(project, stage.id)}>Распределить</button>}</div>{stageTasks.filter(task => !task.parentId).map(task => <div className="project-tree-task" key={task.id}><span className={`task-tree-mark ${task.status === "done" ? "done" : ""}`} /> <span>{task.title}{task.dependsOn && <small className="project-dependency">После: {data.tasks.find(item => item.id === task.dependsOn)?.title ?? "связанной задачи"}</small>}</span>{projectTasks.filter(child => child.parentId === task.id).length > 0 && <div className="project-tree-children">{projectTasks.filter(child => child.parentId === task.id).map(child => <div key={child.id}><span className={`task-tree-mark ${child.status === "done" ? "done" : ""}`} />{child.title}</div>)}</div>}</div>)}{stageTasks.length === 0 && <small className="muted">Здесь появятся задачи</small>}</div>;
                 })}
               </section>
               <div className="action-row" style={{ marginTop: 16 }}>

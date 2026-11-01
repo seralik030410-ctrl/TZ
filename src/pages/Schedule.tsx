@@ -1,5 +1,9 @@
+import { ScheduleTasks } from "@/components/ScheduleTasks";
+import { validViewDay } from "@contracts/plannerState";
+import { navigateTabs } from "@/lib/tabs";
 import { AppSelect, DateField } from "@/components/FormControls";
-import { RecordForm, options } from "@/components/ModuleKit";
+import { RecordForm } from "@/components/ModuleKit";
+import { options } from "@/lib/moduleData";
 import { exceptionSchema, scheduleForDay } from "@contracts/schedule";
 import { addCalendarDays, minutesInZone } from "@contracts/shared";
 import { useState, type FormEvent } from "react";
@@ -47,16 +51,16 @@ export default function Schedule() {
         <button className="button button-primary quick-add-desktop" type="button" onClick={() => setAddOpen(true)}><Plus size={17} />Добавить событие</button>
       </div>
 
-      <div className="field"><label htmlFor="schedule-view-date">Показать расписание на дату</label><DateField id="schedule-view-date" className="input" value={viewDay} onChange={e => { setViewDay(e.target.value); setSelected(new Date(`${e.target.value}T12:00:00Z`).getUTCDay() || 7); }} /></div>
-      <div className="week-grid" role="tablist" aria-label="День недели">
+      <div className="field"><label htmlFor="schedule-view-date">Показать расписание на дату</label><DateField id="schedule-view-date" className="input" required value={viewDay} onChange={e => { const next = validViewDay(e.target.value, localDayKey()); setViewDay(next); setSelected(new Date(`${next}T12:00:00Z`).getUTCDay() || 7); }} /></div>
+      <div className="week-grid" role="tablist" onKeyDown={navigateTabs} aria-label="День недели">
         {weekdays.map((day) => (
-          <button key={day.value} type="button" role="tab" aria-selected={selected === day.value} className={`week-day ${selected === day.value ? "today" : ""}`} onClick={() => { setViewDay(addCalendarDays(viewDay, day.value - selected)); setSelected(day.value); }} style={{ border: 0 }}>
+          <button id={`schedule-tab-${day.value}`} aria-controls="schedule-day-panel" key={day.value} type="button" role="tab" tabIndex={selected === day.value ? 0 : -1} aria-selected={selected === day.value} className={`week-day ${selected === day.value ? "today" : ""}`} onClick={() => { setViewDay(addCalendarDays(viewDay, day.value - selected)); setSelected(day.value); }} style={{ border: 0 }}>
             <strong>{day.short}</strong><span>{scheduleForDay(data.schedule, data.scheduleExceptions ?? [], addCalendarDays(viewDay, day.value - selected)).length} соб.</span>
           </button>
         ))}
       </div>
 
-      <div className="dashboard-grid" style={{ marginTop: 18 }}>
+      <div id="schedule-day-panel" role="tabpanel" aria-labelledby={`schedule-tab-${selected}`} className="dashboard-grid" style={{ marginTop: 18 }}>
         <section className="card span-8">
           <div className="section-title" style={{ marginTop: 0 }}><div><p className="eyebrow">{viewDay}</p><h2>{weekdays.find((day) => day.value === selected)?.long}</h2></div><button className="icon-button" type="button" onClick={() => setAddOpen(true)} aria-label="Добавить событие"><Plus size={20} /></button></div>
           {items.length === 0 && <div className="empty-state"><CalendarDays size={30} /><strong>Свободный день</strong><p>Добавьте только фиксированные события. Гибкие блоки живут в проектах.</p><button className="button button-primary" type="button" onClick={() => setAddOpen(true)}>Добавить событие</button></div>}
@@ -65,9 +69,10 @@ export default function Schedule() {
               <div className="timeline-row" key={item.id}>
                 <div className="timeline-time">{minutesToTime(item.startMin)}</div>
                 <div className="timeline-event fixed">
-                  <strong>{item.title}</strong>
+                  <strong className="schedule-event-title">{item.title}</strong>
                   <p className="micro muted">{item.onDate ? `Только ${item.onDate}` : item.weekParity === "even" ? "Чётные недели" : item.weekParity === "odd" ? "Нечётные недели" : "Каждую неделю · бессрочно"}</p>
                   <div className="action-row"><button className="text-button" onClick={() => setEditing(item)}>Изменить</button><button className="text-button" onClick={() => setExceptionFor(item.id)}>Исключение на дату</button></div>
+                  <ScheduleTasks data={data} eventId={item.id} day={viewDay} />
                   <span>{minutesToTime(item.endMin)} · {formatDuration(item.endMin - item.startMin)}{item.location ? ` · ${item.location}` : ""}</span>
                   <button className="icon-button" style={{ position: "absolute", top: 9, right: 8, width: 38, height: 38 }} type="button" onClick={() => { if (window.confirm(`Убрать «${item.title}» из недельного шаблона?`)) remove.mutate({ id: item.id }); }} aria-label={`Удалить ${item.title}`}><Trash2 size={15} /></button>
                 </div>
@@ -89,7 +94,7 @@ export default function Schedule() {
 
       {data.workspaces.length > 0 && <section className="card" style={{ marginTop: 18 }}><div className="section-title" style={{ marginTop: 0 }}><h2>Занятость участников</h2><span className="badge">Общее</span></div><p className="small muted">{viewDay} · Видно только время занятости. Названия и детали личных событий скрыты.</p>{sharedBusy.isLoading ? <p className="small muted">Загружаем занятость…</p> : sharedBusy.error ? <p className="small muted" role="status">Не удалось проверить занятость. <button className="text-button" onClick={() => void sharedBusy.refetch()}>Повторить</button></p> : sharedBusy.data?.length ? <div className="plain-list">{sharedBusy.data.map(block => <div className="list-row" key={block.id}><Clock3 size={18} color="var(--text-soft)" /><div className="list-row-main"><strong>Занято</strong><span>{minutesToTime(minutesInZone(block.start, getUserTimezone()))}–{minutesToTime(minutesInZone(block.end, getUserTimezone()))}</span></div></div>)}</div> : <p className="small muted">На выбранную дату занятых интервалов нет.</p>}</section>}
       <section className="card" style={{ marginTop: 18 }}><h2>Исключения на дату</h2>{(data.scheduleExceptions ?? []).length ? data.scheduleExceptions.map(exception => <div className="list-row" key={exception.id}><div className="list-row-main"><strong>{data.schedule.find(s => s.id === exception.itemId)?.title ?? "Событие"}</strong><span>{exception.date} · {exception.action === "cancel" ? "Отменено" : `${minutesToTime(exception.startMin ?? 0)}–${minutesToTime(exception.endMin ?? 0)}`}</span></div><button className="icon-button" aria-label="Удалить исключение" onClick={() => removeException.mutate({ id: exception.id })}><Trash2 size={16} /></button></div>) : <p className="small muted">Отмена или перенос на отдельную дату не меняют недельный шаблон.</p>}</section>
-      {exceptionFor && <RecordForm title="Исключение из расписания" initial={{ itemId: exceptionFor }} fields={[{ key: "date", label: "Дата", type: "date", value: localDayKey(), required: true }, { key: "action", label: "Что изменить", options: options({ cancel: "Отменить на эту дату", move: "Перенести время на эту дату" }), value: "cancel", required: true }, { key: "startMin", label: "Новое начало", type: "time", hint: "Для переноса времени" }, { key: "endMin", label: "Новое окончание", type: "time" }]} schema={exceptionSchema} onClose={() => setExceptionFor(null)} onSave={async value => { await saveException.mutateAsync(exceptionSchema.parse(value)); await utils.planner.bootstrap.invalidate(); }} />}
+      {exceptionFor && <RecordForm title="Исключение из расписания" initial={{ itemId: exceptionFor }} fields={[{ key: "date", label: "Дата", type: "date", value: viewDay, required: true }, { key: "action", label: "Что изменить", options: options({ cancel: "Отменить на эту дату", move: "Перенести время на эту дату" }), value: "cancel", required: true }, { key: "startMin", label: "Новое начало", type: "time", hint: "Для переноса времени" }, { key: "endMin", label: "Новое окончание", type: "time" }]} schema={exceptionSchema} onClose={() => setExceptionFor(null)} onSave={async value => { await saveException.mutateAsync(exceptionSchema.parse(value)); await utils.planner.bootstrap.invalidate(); }} />}
       {editing && <ScheduleModal initial={editing} onClose={() => setEditing(null)} defaultWeekday={selected} />}
       {addOpen && <ScheduleModal onClose={() => setAddOpen(false)} defaultWeekday={selected} />}
     </div>
@@ -109,7 +114,7 @@ function ScheduleModal({ onClose, defaultWeekday, initial }: { onClose: () => vo
   const [selectedDays, setSelectedDays] = useState<number[]>(initial?.weekdays.split(",").map(Number) ?? [defaultWeekday]);
   const [error, setError] = useState("");
   const create = trpc.calendar.saveEvent.useMutation({
-    onSuccess: async () => { await utils.planner.bootstrap.invalidate(); toast.success("Событие добавлено в шаблон"); onClose(); },
+    onSuccess: async () => { await utils.planner.bootstrap.invalidate(); toast.success(initial ? "Изменения сохранены" : "Событие добавлено"); onClose(); },
     onError: (mutationError) => setError(mutationError.message),
   });
   const submit = (event: FormEvent) => {
@@ -139,7 +144,7 @@ function ScheduleModal({ onClose, defaultWeekday, initial }: { onClose: () => vo
         <div className="field"><span className="field-label">Дни недели</span><div className="week-grid">{weekdays.map((day) => <button key={day.value} className={`week-day ${selectedDays.includes(day.value) ? "today" : ""}`} style={{ border: 0 }} type="button" onClick={() => setSelectedDays((days) => days.includes(day.value) ? days.filter((value) => value !== day.value) : [...days, day.value])}><strong>{day.short}</strong></button>)}</div></div>
         <div className="field"><label htmlFor="schedule-location">Место <span className="muted">(необязательно)</span></label><div style={{ position: "relative" }}><MapPin size={17} style={{ position: "absolute", left: 14, top: 17, color: "var(--text-soft)" }} /><input id="schedule-location" className="input" style={{ paddingLeft: 42 }} value={location} onChange={(event) => setLocation(event.target.value)} placeholder="Аудитория или адрес" /></div></div>
         {error && <p className="field-error" role="alert">{error}</p>}
-        <button className="button button-primary button-wide" type="submit" disabled={create.isPending}>{create.isPending ? "Добавляем…" : "Добавить в расписание"}</button>
+        <button className="button button-primary button-wide" type="submit" disabled={create.isPending}>{create.isPending ? "Сохраняем…" : initial ? "Сохранить изменения" : "Добавить в расписание"}</button>
       </form>
     </Modal>
   );

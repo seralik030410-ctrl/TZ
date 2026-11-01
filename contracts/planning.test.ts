@@ -44,6 +44,15 @@ describe("free windows", () => {
 });
 
 describe("stage allocation", () => {
+  it("places a dependency before its urgent successor and does not schedule cycles", () => {
+    const windows = () => ({ "2026-11-02": [{ startMin: 540, endMin: 720 }] });
+    const rows = [{ id: "b", estimateMin: 30, priority: 3, dependsOn: "a" }, { id: "a", estimateMin: 60, priority: 1 }];
+    expect(allocateTasks(rows, windows()).map(b => b.taskId)).toEqual(["a", "b"]);
+    expect(allocateTasks([{ ...rows[0] }, { ...rows[1], dependsOn: "b" }], windows())).toEqual([]);
+  });
+  it("does not place avatar work after its November 3 deadline", () => {
+    expect(allocateTasks([{ id: "avatars", estimateMin: 120, priority: 2, due: "2026-11-03" }], { "2026-11-04": [{ startMin: 540, endMin: 720 }] })).toEqual([]);
+  });
   it("allocates ten tasks in one pass and respects the daily cap", () => {
     const tasks = Array.from({ length: 10 }, (_, index) => ({
       id: `task-${index}`,

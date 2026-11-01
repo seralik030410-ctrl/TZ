@@ -9,3 +9,28 @@
 .dashboard-grid>*,.metric-grid>*,.form-grid>*,.form-row>*,.module-summary>*,.project-grid>*,.field{min-width:0}.form-row{grid-template-columns:minmax(0,1fr)}.field input:not([type=checkbox]),.field textarea,.field .ritm-select,.field .ritm-date-trigger{max-width:100%;min-width:0;width:100%}.metric-card{container-type:inline-size}.metric-card .card-label{padding-right:28px;overflow-wrap:anywhere;line-height:1.4}.metric-card .card-value{font-size:clamp(20px,12cqi,34px);overflow-wrap:anywhere;letter-spacing:-.04em;line-height:1.2}.metric-footer,.module-value,.list-row-main,.project-title,.task-content{overflow-wrap:anywhere}.ring-copy{max-width:124px}.ring-copy span{display:block;margin-top:8px;line-height:1.4;overflow-wrap:anywhere}.section-title>div{min-width:0}.field label{overflow-wrap:anywhere}@media(min-width:640px){.form-row{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
 .task-actions-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:12px 0 18px}.task-actions-toolbar>.button,.task-actions-toolbar>button{margin:0;min-height:44px}@media(max-width:520px){.task-actions-toolbar{gap:8px}.task-actions-toolbar>*{max-width:100%}}
+
+/* Event content grows vertically; controls retain their own space. */
+.timeline-row{grid-template-columns:48px minmax(0,1fr)}
+.timeline-event{min-width:0;overflow-wrap:anywhere}
+.schedule-event-title{padding-right:40px}
+.timeline-open{display:block;margin-bottom:8px;min-height:28px}
+.event-checklist{display:grid;gap:10px;margin:12px 0;min-width:0}
+.event-checklist-group{display:grid;gap:8px;border-left:2px solid var(--line);padding-left:10px}
+.event-checklist-row{display:flex;align-items:flex-start;gap:8px;min-width:0}
+.event-checklist-row.is-child{padding-left:18px}
+.event-checklist-row .task-check{flex:0 0 26px;width:26px;height:26px;margin:0}
+.event-checklist-row>span{font-size:13px;line-height:1.6;overflow-wrap:anywhere}
+.event-checklist-row .completed-step{text-decoration:line-through;color:var(--text-soft)}
+.event-add-task{justify-self:start;min-height:32px;text-align:left}
+.today-timeline{margin-bottom:18px}
+.project-tree-task{flex-wrap:wrap}
+.project-tree-task>span:nth-child(2){flex:1;min-width:0}
+.project-tree-children{flex-basis:100%;margin-left:16px;min-width:0}
+.list-row{min-width:0;flex-wrap:wrap}
+.list-row-main{flex:1 1 100px}
+.list-row-value{max-width:100%;white-space:normal;overflow-wrap:anywhere}
+.section-title{flex-wrap:wrap;gap:12px}
+.section-title>h2,.page-header>div{min-width:0}
+[role=tab]:focus-visible,.text-button:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+@media(max-width:520px){.card{padding:16px}.action-row{gap:10px}.page-header{align-items:flex-start;flex-wrap:wrap}.page-header>.action-row{width:100%}.ritm-calendar-popup{padding:10px}.timeline-row{grid-template-columns:40px minmax(0,1fr);gap:6px}.timeline-event{padding:12px}.event-checklist-row.is-child{padding-left:10px}.budget-grid{grid-template-columns:1fr}.safe-value{font-size:clamp(24px,9vw,40px);overflow-wrap:anywhere}.module-value,.card-value{overflow-wrap:anywhere}}

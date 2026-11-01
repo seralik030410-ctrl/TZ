@@ -6,7 +6,8 @@ import { trpc } from "@/providers/trpc";
 import type { LayoutContext } from "@/lib/planner";
 import { Modal } from "@/components/Modal";
 import { HistoryChart } from "@/components/HistoryChart";
-import { RecordForm, ModuleHeader, Metric, Ring, Empty, SearchField, LoadingError, options, currencyField, useModuleCache, moduleMutation, type Field } from "@/components/ModuleKit";
+import { RecordForm, ModuleHeader, Metric, Ring, Empty, SearchField, LoadingError } from "@/components/ModuleKit";
+import { options, currencyField, useModuleCache, moduleMutation, type Field } from "@/lib/moduleData";
 import { agencyWriteSchema, clientSchema, dealSchema, paymentSchema, checklistSchema, visaSchema, flightSchema, agencyTotals, agencyProfitTrend, outstanding, dealProfit, agencyEvents } from "@contracts/agency";
 import { dayInZone, daysLeftInMonth, moneyText } from "@contracts/shared";
 

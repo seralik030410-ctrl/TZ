@@ -1,11 +1,12 @@
 import { setOfflineAccount } from "@/lib/offline";
+import { TaskArchive } from "@/components/TaskArchive";
 import { queryClient } from "@/providers/trpc";
 import { AppSelect } from "@/components/FormControls";
 import { useEffect, useState, type FormEvent } from "react";
 import { useOutletContext } from "react-router";
 import { Download, LogOut, Moon, Save, ShieldCheck, Sun } from "lucide-react";
 import { toast } from "sonner";
-import { currencies } from "@/components/ModuleKit";
+import { currencies } from "@/lib/moduleData";
 import { trpc } from "@/providers/trpc";
 import { downloadJson, localDayKey, minutesToTime, timeToMinutes, type LayoutContext } from "@/lib/planner";
 
@@ -49,7 +50,7 @@ export default function Settings() {
     event.preventDefault();
     if (!name.trim()) return toast.error("Имя не может быть пустым");
     if (timeToMinutes(workEnd) <= timeToMinutes(workStart)) return toast.error("Конец рабочего дня должен быть позже начала");
-    update.mutate({ name: name.trim(), currency, dailyLimit: Math.round(dailyLimit * 100), monthlyLimit: Math.round(monthlyLimit * 100), cushion: Math.round(cushion * 100), monthlySavings: Math.round(monthlySavings * 100), workStartMin: timeToMinutes(workStart), workEndMin: timeToMinutes(workEnd), timezone, agencyGoal: Math.round(agencyGoal * 100), agencyGoalCurrency: (currencies.includes(goalCurrency) ? goalCurrency : "TJS") as "TJS" | "USD" | "RUB" });
+    update.mutate({ name: name.trim(), currency, dailyLimit: Math.round(dailyLimit * 100), monthlyLimit: Math.round(monthlyLimit * 100), cushion: Math.round(cushion * 100), monthlySavings: Math.round(monthlySavings * 100), workStartMin: timeToMinutes(workStart), workEndMin: timeToMinutes(workEnd), timezone, agencyGoal: Math.round(agencyGoal * 100), agencyGoalCurrency: (currencies.includes(goalCurrency) ? goalCurrency : "TJS") as "TJS" | "USD" | "RUB" | "EUR" | "KZT" });
   };
 
   const changeTheme = (theme: "light" | "dark") => {
@@ -72,6 +73,7 @@ export default function Settings() {
   return (
     <div className="page">
       <div className="page-header"><div><p className="eyebrow">Приложение под ваш ритм</p><h1>Настройки</h1><p className="subtitle">Рабочие часы, лимиты, внешний вид и ваши данные.</p></div></div>
+      <TaskArchive />
       <div className="dashboard-grid">
         <section className="card span-7">
           <div className="section-title" style={{ marginTop: 0 }}><h2>Основное</h2><Save size={19} color="var(--text-soft)" /></div>

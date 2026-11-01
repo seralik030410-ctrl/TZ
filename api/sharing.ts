@@ -11,6 +11,11 @@ type Db = Parameters<Parameters<ReturnType<typeof getDb>["transaction"]>[0]>[0];
 type Busy = { id: string; start: Date; end: Date };
 export async function lockPlanning(db: Db) {
   await db.select({ id: users.id }).from(users).where(eq(users.id, OWNER_ID)).for("update");
+  const account = currentAccount();
+  if (account.checksTaskEpoch) {
+    const [prefs] = await db.select().from(settings).where(eq(settings.id, currentSettingsId()));
+    if ((prefs?.taskEpoch ?? 0) !== account.taskEpoch) throw new TRPCError({ code: "CONFLICT", message: "Список задач был архивирован или восстановлен. Обновите страницу; старая запись сохранена на устройстве." });
+  }
 }
 async function members(db: Db, workspaceIds: string[]) {
   if (!workspaceIds.length) return [];

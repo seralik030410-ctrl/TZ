@@ -1,3 +1,4 @@
+import { inDayRange } from "@contracts/plannerState";
 import { normalizeCurrency } from "@contracts/shared";
 import { useState, type CSSProperties } from "react";
 import { useNavigate, useOutletContext } from "react-router";
@@ -19,12 +20,13 @@ export default function Week() {
     return { key, date, label: new Intl.DateTimeFormat("ru-RU", { weekday: "short" }).format(date).replace(".", "") };
   });
   const weekStart = days[0].key;
-  const logs = data.timeLogs.filter((log) => localDayKey(log.start) >= weekStart);
-  const transactions = data.transactions.filter((transaction) => localDayKey(transaction.happenedAt) >= weekStart);
-  const completed = data.tasks.filter((task) => task.status === "done").length;
+  const weekEnd = localDayKey();
+  const logs = data.timeLogs.filter((log) => inDayRange(localDayKey(log.start), weekStart, weekEnd));
+  const transactions = data.transactions.filter((transaction) => inDayRange(localDayKey(transaction.happenedAt), weekStart, weekEnd));
+  const completed = data.tasks.filter((task) => task.status === "done" && task.completedAt && inDayRange(localDayKey(task.completedAt), weekStart, weekEnd)).length;
   const expenses = transactions.filter((transaction) => transaction.kind === "expense").reduce((sum, transaction) => sum + transaction.amount, 0);
   const income = transactions.filter((transaction) => transaction.kind === "income").reduce((sum, transaction) => sum + transaction.amount, 0);
-  const journal = data.journal.filter((entry) => entry.date >= weekStart);
+  const journal = data.journal.filter((entry) => inDayRange(entry.date, weekStart, weekEnd));
   const averageEnergy = journal.length ? (journal.reduce((sum, entry) => sum + entry.energy, 0) / journal.length).toFixed(1) : "—";
   const totalMinutes = logs.reduce((sum, log) => sum + log.minutes, 0);
   const maxDayMinutes = Math.max(60, ...days.map((day) => logs.filter((log) => localDayKey(log.start) === day.key).reduce((sum, log) => sum + log.minutes, 0)));

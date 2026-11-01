@@ -1,0 +1,9 @@
+
+ RUN  v4.1.12 C:/Users/alijo/Documents/app
+
+·······················································
+
+ Test Files  11 passed (11)
+      Tests  55 passed (55)
+   Start at  07:26:29
+   Duration  2.74s (transform 1.01s, setup 0ms, import 2.60s, tests 309ms, environment 1ms)

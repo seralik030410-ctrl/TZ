@@ -6,7 +6,7 @@ import { Check, Plus } from "lucide-react";
 import { Modal } from "./Modal";
 import { trpc } from "@/providers/trpc";
 import { localDayKey, minutesToTime, type PlannerData, type QuickAddKind } from "@/lib/planner";
-import { moduleMutation } from "./ModuleKit";
+import { moduleMutation } from "@/lib/moduleData";
 
 const kindLabels: Record<QuickAddKind, string> = {
   task: "Задача",

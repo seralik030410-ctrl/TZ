@@ -92,6 +92,13 @@
       "when": 1793500000004,
       "tag": "0012_tasks_in_schedule",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "5",
+      "when": 1793500000005,
+      "tag": "0013_task_archive",
+      "breakpoints": true
     }
   ]
 }

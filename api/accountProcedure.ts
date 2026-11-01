@@ -18,10 +18,12 @@ export async function resolveAccount(req: Request) {
   const members = await getDb().select().from(workspaceMembers).where(eq(workspaceMembers.userId, user.id));
   return { id: user.id, name: user.name, workspaceIds: members.map(member => member.workspaceId) };
 }
-export const protectedQuery = publicQuery.use(async ({ ctx, next }) => {
+export const protectedQuery = publicQuery.use(async ({ ctx, next, type, path }) => {
   const account = await resolveAccount(ctx.req);
   if (!account) throw new TRPCError({ code: "UNAUTHORIZED" });
   const expected = ctx.req.headers.get("X-Planner-Account");
   if (expected && expected !== account.id) throw new TRPCError({ code: "UNAUTHORIZED", message: "Профиль изменился. Обновите страницу перед сохранением." });
-  return accountContext.run(account, () => next({ ctx: { ...ctx, account } }));
+  const taskEpoch = Number(ctx.req.headers.get("X-Planner-Task-Epoch") ?? 0);
+  const checksTaskEpoch = type === "mutation" && /^(planner\.(tasks|planning)\.|daily\.|routines\.closeDay$)/.test(path);
+  return accountContext.run({ ...account, taskEpoch, checksTaskEpoch }, () => next({ ctx: { ...ctx, account } }));
 });

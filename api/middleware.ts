@@ -2,6 +2,8 @@ import { initTRPC } from "@trpc/server";
 import superjson from "superjson";
 import type { TrpcContext } from "./context";
 import { log } from "./lib/logger";
+import { ZodError } from "zod";
+import { validationMessage } from "../contracts/validationMessage";
 
 const t = initTRPC.context<TrpcContext>().create({
   transformer: superjson,
@@ -22,7 +24,7 @@ const t = initTRPC.context<TrpcContext>().create({
         stack: error.stack,
       });
     }
-    return shape;
+    return error.cause instanceof ZodError ? { ...shape, message: validationMessage(error.cause.issues) } : shape;
   },
 });
 

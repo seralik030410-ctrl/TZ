@@ -1,0 +1,38 @@
+[
+  {
+    "width": 360,
+    "view": "Список",
+    "scroll": 345,
+    "selected": "Список"
+  },
+  {
+    "width": 360,
+    "view": "Доска",
+    "scroll": 345,
+    "selected": "Доска"
+  },
+  {
+    "width": 360,
+    "view": "Матрица",
+    "scroll": 345,
+    "selected": "Матрица"
+  },
+  {
+    "width": 1280,
+    "view": "Список",
+    "scroll": 1265,
+    "selected": "Список"
+  },
+  {
+    "width": 1280,
+    "view": "Доска",
+    "scroll": 1265,
+    "selected": "Доска"
+  },
+  {
+    "width": 1280,
+    "view": "Матрица",
+    "scroll": 1265,
+    "selected": "Матрица"
+  }
+]

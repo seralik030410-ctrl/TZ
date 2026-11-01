@@ -1,4 +1,4 @@
-import { getOfflineAccount } from "@/lib/offline";
+import { getOfflineAccount, getTaskEpoch } from "@/lib/offline";
 import { createTRPCReact } from "@trpc/react-query";
 import { httpBatchLink, splitLink } from "@trpc/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -21,7 +21,7 @@ const trpcClient = trpc.createClient({
     false: httpBatchLink({
       url: "/api/trpc",
       transformer: superjson,
-      headers: () => { const account = getOfflineAccount(); return account ? { "X-Planner-Account": account } : {}; },
+      headers: () => { const account = getOfflineAccount(); return account ? { "X-Planner-Account": account, "X-Planner-Task-Epoch": String(getTaskEpoch()) } : {}; },
       fetch: (input, init) => globalThis.fetch(input, { ...init, credentials: "include" }),
     }),
   })],
