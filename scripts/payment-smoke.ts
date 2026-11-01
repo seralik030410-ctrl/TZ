@@ -111,6 +111,14 @@ try {
   await assert.rejects(() => call("planner.money.setStatus", { id, status: "posted" }, false, friend.cookie));
   await assert.rejects(() => call("planner.auth.register", { token: invite.token, name: "Duplicate", password: "another-local-password" }));
   console.log("PASS invitation acceptance, single use, and private payment isolation");
+  const sharedProject = randomUUID(), sharedTask = randomUUID();
+  await call("planner.projects.create", { id: sharedProject, name: "Shared checklist", type: "personal", workspaceId: workspace });
+  await call("planner.tasks.create", { id: sharedTask, title: "Shared avatar", projectId: sharedProject, workspaceId: workspace });
+  await call("planner.tasks.update", { id: sharedTask, status: "done" }, false, friend.cookie);
+  const [[completedShared]] = await db.query<(RowDataPacket & { status: string })[]>("SELECT status FROM tasks WHERE id=?", [sharedTask]);
+  assert.equal(completedShared.status, "done");
+  await call("planner.tasks.update", { id: sharedTask, status: "plan" });
+  console.log("PASS friend completes shared task and owner reopens it");
   const billId = randomUUID();
   await call("planner.bills.create", { id: billId, name: "Monthly internet smoke", amount: 15000, dueDay: 10, currency: "TJS" });
   await Promise.all([call("planner.bills.markPaid", { id: billId }), call("planner.bills.markPaid", { id: billId })]);

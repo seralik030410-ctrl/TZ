@@ -1,3 +1,4 @@
+import { DebtSummary } from "@/components/DebtSummary";
 import { daysLeftInMonth, normalizeCurrency } from "@contracts/shared";
 import { useState } from "react";
 import { useOutletContext } from "react-router";
@@ -80,7 +81,7 @@ export default function Money() {
         </section>
       </div>
 
-      <div style={{ marginTop: 14 }}><RecurringBills data={data} /></div>
+      <div style={{ marginTop: 14 }}><RecurringBills data={data} /></div><DebtSummary />
 
       <section className="card" style={{ marginTop: 18 }}>
         <div className="section-title" style={{ marginTop: 0 }}><h2>Ожидаемая оплата</h2><span className="badge">{formatMoney((data.pendingTransactions ?? []).filter(t => t.currency === currency).reduce((sum, t) => sum + t.amount, 0), currency)}</span></div>

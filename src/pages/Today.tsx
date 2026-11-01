@@ -1,4 +1,5 @@
 import { ScheduleTasks } from "@/components/ScheduleTasks";
+import { TaskCompletion } from "@/components/TaskCompletion";
 import { remainingMinutes, isStandaloneTask } from "@contracts/plannerState";
 import { scheduleForDay } from "@contracts/schedule";
 import { minutesInZone, daysLeftInMonth, normalizeCurrency } from "@contracts/shared";
@@ -17,7 +18,6 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
-  Check,
   CheckCircle2,
   Clock3,
   Coffee,
@@ -73,6 +73,7 @@ export default function Today() {
       kind: item.kind,
       location: item.location,
       fixed: true,
+      taskId: null,
       linkedTasks: data.tasks.filter(task => task.scheduleItemId === item.id && task.status !== "done" && (!task.due || task.due === today)),
     }));
 
@@ -89,6 +90,7 @@ export default function Today() {
         kind: "project",
         location: "Запланированный блок",
         fixed: false,
+        taskId: task.id,
         linkedTasks: [],
       };
     }).filter((block): block is NonNullable<typeof block> => block !== null);
@@ -113,6 +115,7 @@ export default function Today() {
   })();
 
   const todayTasks = data.tasks.filter((task) => task.status !== "done" && (task.due === today || (isToday && task.isMit && !task.due)));
+  const dayTasks = data.tasks.filter(task => !task.scheduleItemId && !task.parentId && (task.due === today || (isToday && !task.due && (task.status !== "done" || (task.completedAt && localDayKey(task.completedAt) === today)))));
   const weekEnd = addCalendarDays(today, 7);
   const upcomingUnplanned = data.tasks.filter(task => isStandaloneTask(task) && !!task.due && task.due <= weekEnd && remainingMinutes(task, data.scheduledBlocks) > 0).sort((a,b) => (a.due ?? "").localeCompare(b.due ?? "") || b.importance-a.importance);
   const mitTasks = data.tasks.filter((task) => task.isMit && (task.due === today || (isToday && !task.due && task.status !== "done"))).slice(0, 3);
@@ -192,6 +195,7 @@ export default function Today() {
                       <div className={`timeline-event ${item.event.fixed ? "fixed" : ""}`}>
                         <button className="timeline-open text-button" type="button" onClick={() => navigate(item.event.fixed ? "/schedule" : "/tasks")}>Открыть {item.event.fixed ? "занятие" : "задачу"}</button>
                         <strong>{item.event.title}</strong>
+                        {item.event.taskId && data.tasks.find(task => task.id === item.event.taskId) && <TaskCompletion task={data.tasks.find(task => task.id === item.event.taskId)!} />}
                         <span>{minutesToTime(end)} · {formatDuration(end - start)}{item.event.location ? ` · ${item.event.location}` : ""}</span>
                         {item.event.fixed && <ScheduleTasks data={data} eventId={item.event.id} day={today} />}
                         {item.event.fixed ? <LockKeyhole className="dot" size={13} style={{ background: "none" }} /> : <span className="dot" style={{ background: "var(--cat-personal)" }} />}
@@ -214,6 +218,13 @@ export default function Today() {
         </section>
 
 
+      {dayTasks.length > 0 && <section className="card" style={{ marginBottom: 18 }}>
+        <div className="section-title" style={{ marginTop: 0 }}><h2>Задачи дня</h2><button className="text-button" onClick={() => navigate("/tasks")}>Все задачи →</button></div>
+        <div className="plain-list">{dayTasks.map(task => <div key={task.id}>
+          <div className="list-row"><TaskCompletion task={task} /><div className="list-row-main"><strong className={task.status === "done" ? "completed-step" : ""}>{task.title}</strong><span>{data.projects.find(p => p.id === task.projectId)?.name ?? "Личная задача"}{task.workspaceId ? " · Общая" : ""}</span></div></div>
+          {data.tasks.filter(child => child.parentId === task.id).map(child => <div className="list-row" key={child.id} style={{ marginLeft: 30 }}><TaskCompletion task={child} /><span className={child.status === "done" ? "completed-step" : ""}>{child.title}</span></div>)}
+        </div>)}</div>
+      </section>}
       <div className="action-row" style={{ marginBottom: 18 }}>
         {isToday && <DailyPlanner data={data} />}
         {isToday && <CloseDay data={data} />}
@@ -294,7 +305,7 @@ export default function Today() {
             <div className="plain-list">
               {mitTasks.map((task) => (
                 <div className="list-row" key={task.id}>
-                  <span className={`task-check ${task.status === "done" ? "checked" : ""}`}>{task.status === "done" && <Check size={15} />}</span>
+                  <TaskCompletion task={task} />
                   <div className="list-row-main"><strong>{task.title}</strong><span>{data.projects.find((project) => project.id === task.projectId)?.name ?? "Личная задача"}</span></div>
                 </div>
               ))}
