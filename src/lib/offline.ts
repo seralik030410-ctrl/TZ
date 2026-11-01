@@ -121,7 +121,7 @@ async function replay(accountId: string) {
   let replayed = 0;
   for (const mutation of mutations.filter(row => row.accountId === accountId).sort((a, b) => a.createdAt - b.createdAt)) {
     if (activeAccount !== accountId) break;
-    if (mutation.path.startsWith("planner.tasks.") && (mutation.taskEpoch ?? 0) !== getTaskEpoch()) continue;
+    if ((mutation.taskEpoch ?? 0) !== getTaskEpoch()) continue;
     try {
       const response = await fetch(`/api/trpc/${mutation.path}`, {
         method: "POST",

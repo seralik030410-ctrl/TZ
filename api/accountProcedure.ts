@@ -6,6 +6,7 @@ import { getDb } from "./queries/connection";
 import { users, workspaceMembers } from "../db/accounts";
 import { readAccountSession } from "./lib/accountSecurity";
 import { accountContext } from "./lib/accountContext";
+import { settings } from "../db/schema";
 
 export const ACCOUNT_COOKIE = "planner_session_v2";
 export async function resolveAccount(req: Request) {
@@ -24,6 +25,10 @@ export const protectedQuery = publicQuery.use(async ({ ctx, next, type, path }) 
   const expected = ctx.req.headers.get("X-Planner-Account");
   if (expected && expected !== account.id) throw new TRPCError({ code: "UNAUTHORIZED", message: "Профиль изменился. Обновите страницу перед сохранением." });
   const taskEpoch = Number(ctx.req.headers.get("X-Planner-Task-Epoch") ?? 0);
+  if (type === "mutation" && /^(planner\.(tasks\.|money\.add$|journal\.save$)|agency\.(save|remove)$|gold\.(save|remove)$|debts\.(save|remove)$)/.test(path)) {
+    const [prefs] = await getDb().select({ epoch: settings.taskEpoch }).from(settings).where(eq(settings.ownerId, account.id));
+    if ((prefs?.epoch ?? 0) !== taskEpoch) throw new TRPCError({ code: "CONFLICT", message: "Данные архивированы. Обновите страницу; прежняя запись сохранена на устройстве." });
+  }
   const checksTaskEpoch = type === "mutation" && /^(planner\.(tasks|planning)\.|daily\.|routines\.closeDay$)/.test(path);
   return accountContext.run({ ...account, taskEpoch, checksTaskEpoch }, () => next({ ctx: { ...ctx, account } }));
 });

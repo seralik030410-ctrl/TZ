@@ -113,6 +113,13 @@
       "when": 1793500000007,
       "tag": "0015_study_schedule_nov_dec",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "5",
+      "when": 1793500000008,
+      "tag": "0016_study_only_archive",
+      "breakpoints": true
     }
   ]
 }

@@ -32,7 +32,7 @@ export function useModuleCache<T>(name: string, serverData: T | undefined) {
     const update = async () => {
       const projected = { ...serverData } as Record<string, unknown>;
       const pending = await pendingMutations();
-      for (const mutation of pending.filter(m => m.path.startsWith(`${name}.`))) {
+      for (const mutation of pending.filter(m => m.path.startsWith(`${name}.`) && (m.taskEpoch ?? 0) === getTaskEpoch())) {
         const input = mutation.input as { record?: { entity: string; data: { id: string } }; entity?: string; id?: string };
         const key = input.record?.entity ?? input.entity;
         if (!key || !Array.isArray(projected[key])) continue;

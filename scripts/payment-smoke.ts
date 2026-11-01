@@ -18,6 +18,7 @@ const env = { ...process.env, NODE_ENV: "production", PORT: "4319", APP_SECRET: 
 const owner = "00000000-0000-4000-8000-000000000001";
 type Snapshot = { projects: { id: string; name: string; expectedIncome: number; deadline: string | null }[]; tasks: { id: string; title: string; stageId: string | null }[]; transactions: { id: string; amount: number }[]; pendingTransactions: { id: string; amount: number }[] };
 let server: ReturnType<typeof spawn> | undefined;
+let epoch = 0;
 try {
   for (let i = 0; i < 2; i++) execFileSync(process.execPath, ["scripts/migrate.mjs"], { env, stdio: "pipe" });
   console.log("PASS migration and migration replay on isolated local database");
@@ -57,7 +58,7 @@ try {
   server.stderr?.on("data", data => { serverError += String(data).slice(-2000); });
   const base = "http://127.0.0.1:4319/api/trpc/";
   async function call(path: string, input?: unknown, query = false, session = cookie) {
-    const response = await fetch(base + path + (query && input !== undefined ? "?input=" + encodeURIComponent(JSON.stringify(superjson.serialize(input))) : ""), { method: query ? "GET" : "POST", headers: { "Content-Type": "application/json", Cookie: session }, ...(!query ? { body: JSON.stringify(superjson.serialize(input)) } : {}) });
+    const response = await fetch(base + path + (query && input !== undefined ? "?input=" + encodeURIComponent(JSON.stringify(superjson.serialize(input))) : ""), { method: query ? "GET" : "POST", headers: { "Content-Type": "application/json", Cookie: session, "X-Planner-Task-Epoch": String(epoch) }, ...(!query ? { body: JSON.stringify(superjson.serialize(input)) } : {}) });
     const body = await response.json();
     if (!response.ok || body.error) throw new Error(`${path}: ${body.error?.json?.message ?? response.status}`);
     return { data: superjson.deserialize(body.result.data) as unknown, cookie: response.headers.get("set-cookie")?.split(";")[0] };
@@ -110,6 +111,11 @@ try {
   await assert.rejects(() => call("planner.money.setStatus", { id, status: "posted" }, false, friend.cookie));
   await assert.rejects(() => call("planner.auth.register", { token: invite.token, name: "Duplicate", password: "another-local-password" }));
   console.log("PASS invitation acceptance, single use, and private payment isolation");
+  await db.query("UPDATE settings SET task_epoch=task_epoch+1 WHERE owner_id=?", [owner]);
+  await assert.rejects(() => call("planner.money.add", { amount: 100, kind: "income", category: "Old queue" }));
+  epoch = 1;
+  await call("planner.money.add", { amount: 100, kind: "income", category: "New entry" });
+  console.log("PASS stale financial queue rejected and refreshed entry accepted");
 } finally {
   server?.kill();
   await db.end();
