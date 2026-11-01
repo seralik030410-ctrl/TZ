@@ -57,6 +57,7 @@ export function QuickAdd({ kind, data, onClose }: { kind: QuickAddKind; data: Pl
       } else {
         const value = minorUnits(amount.replace(",", "."));
         if (value <= 0) throw new Error("Введите сумму больше нуля");
+        if (!category.trim()) throw new Error("Выберите категорию дохода или расхода");
         await moduleMutation("planner.money.add", { id: recordId, kind: activeKind, amount: value, currency: normalizeCurrency(data.settings?.currency), category, note: note.trim() || undefined, projectId: projectId || null, happenedAt: new Date() });
       }
       await refresh(); onClose();

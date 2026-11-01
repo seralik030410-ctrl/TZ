@@ -1,4 +1,5 @@
-import { Children, isValidElement, useState, type ChangeEvent, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from "react";
+import { useState, type ChangeEvent, type InputHTMLAttributes, type SelectHTMLAttributes } from "react";
+import { selectOptions } from "@/lib/selectOptions";
 import * as Select from "@radix-ui/react-select";
 import * as Popover from "@radix-ui/react-popover";
 import { CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
@@ -6,14 +7,8 @@ import { DayPicker } from "react-day-picker";
 import "react-day-picker/style.css";
 import { ru } from "react-day-picker/locale";
 
-function choices(children: ReactNode): { value: string; label: ReactNode; disabled?: boolean }[] {
-  return Children.toArray(children).flatMap(child => {
-    if (!isValidElement<{ value?: string | number; children?: ReactNode; disabled?: boolean }>(child)) return [];
-    return child.type === "option" ? [{ value: String(child.props.value ?? ""), label: child.props.children, disabled: child.props.disabled }] : choices(child.props.children);
-  });
-}
 export function AppSelect({ children, value, defaultValue, onChange, className, style, id, name, disabled, required, ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
-  const items = choices(children); const [local, setLocal] = useState(String(defaultValue ?? items[0]?.value ?? ""));
+  const items = selectOptions(children); const [local, setLocal] = useState(String(defaultValue ?? items[0]?.value ?? ""));
   const current = value === undefined ? local : String(value);
   const empty = "__ritm_empty_option__";
   return <><input type="hidden" name={name} value={current} /><Select.Root value={current || empty} onValueChange={next => { const v = next === empty ? "" : next; setLocal(v); onChange?.({ target: { value: v }, currentTarget: { value: v } } as ChangeEvent<HTMLSelectElement>); }} disabled={disabled} required={required}><Select.Trigger id={id} className={`ritm-select ${className ?? "select"}`} style={style} aria-label={props["aria-label"]} aria-labelledby={props["aria-labelledby"]}><Select.Value placeholder="Выберите" /><Select.Icon><ChevronDown size={16} /></Select.Icon></Select.Trigger><Select.Portal><Select.Content data-ritm-popup="select" className="ritm-select-menu" position="popper" sideOffset={6} collisionPadding={12}><Select.ScrollUpButton className="ritm-select-scroll">↑</Select.ScrollUpButton><Select.Viewport>{items.map(item => <Select.Item className="ritm-select-option" value={item.value || empty} key={item.value} disabled={item.disabled}><Select.ItemText>{item.label}</Select.ItemText><Select.ItemIndicator><Check size={16} /></Select.ItemIndicator></Select.Item>)}</Select.Viewport><Select.ScrollDownButton className="ritm-select-scroll">↓</Select.ScrollDownButton></Select.Content></Select.Portal></Select.Root></>;
