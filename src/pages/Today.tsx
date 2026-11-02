@@ -1,3 +1,4 @@
+import { completion } from "@contracts/completion";
 import { cashBalance } from "@contracts/cashBalance";
 import { ScheduleTasks } from "@/components/ScheduleTasks";
 import { TaskCompletion } from "@/components/TaskCompletion";
@@ -127,8 +128,11 @@ export default function Today() {
   const balance = cashBalance(data.transactions, normalizeCurrency(data.settings?.currency));
 
   const focusMinutes = data.timeLogs.filter((log) => localDayKey(log.start) === today).reduce((sum, log) => sum + log.minutes, 0);
-  const goalMinutes = data.projects.reduce((sum, project) => sum + project.dailyMinutesGoal, 0);
-  const focusPercent = Math.min(100, Math.round((focusMinutes / Math.max(1, goalMinutes)) * 100));
+  const monthBills = data.recurringBills;
+  const paidBills = monthBills.filter(bill => bill.paidThrough === today.slice(0, 7)).length;
+  const relevantTasks = data.tasks.filter(task => task.due === today || (task.completedAt && localDayKey(task.completedAt) === today) || (isToday && !task.due));
+  const taskProgress = completion(relevantTasks);
+  const success = completion([...relevantTasks, ...monthBills.map(bill => ({ status: bill.paidThrough === today.slice(0, 7) ? "done" : "plan" }))]);
   const radius = 65;
   const circumference = 2 * Math.PI * radius;
   const freeMinutes = freeWindows.reduce((sum, window) => sum + window.endMin - window.startMin, 0);
@@ -245,17 +249,17 @@ export default function Today() {
         </section>
 
         <section className="card span-5">
-          <p className="card-label">Цель по проектам</p>
-          <div className="progress-ring" aria-label={`Выполнено ${focusPercent}% дневной цели`}>
+          <p className="card-label">Выполнение дел</p>
+          <div className="progress-ring" aria-label={`Выполнено ${success.percent}% дел`}>
             <svg viewBox="0 0 156 156" aria-hidden="true">
               <circle className="ring-track" cx="78" cy="78" r={radius} />
-              <circle className="ring-value" cx="78" cy="78" r={radius} strokeDasharray={circumference} strokeDashoffset={circumference * (1 - focusPercent / 100)} />
+              <circle className="ring-value" cx="78" cy="78" r={radius} strokeDasharray={circumference} strokeDashoffset={circumference * (1 - success.percent / 100)} />
             </svg>
-            <div className="ring-copy"><strong className="number">{focusPercent}%</strong><span>{formatDuration(focusMinutes)} из {formatDuration(goalMinutes)}</span></div>
+            <div className="ring-copy"><strong className="number">{success.percent}%</strong><span>{success.done} из {success.total} дел</span></div>
           </div>
           <div className="legend-list">
-            <div className="legend-row"><span className="dot" style={{ background: "var(--success)" }} />Задачи MIT<strong>{completedMit}/{mitTasks.length}</strong></div>
-            <div className="legend-row"><span className="dot" style={{ background: "var(--info)" }} />События дня<strong>{agenda.length}</strong></div>
+            <div className="legend-row"><span className="dot" style={{ background: "var(--success)" }} />Задачи дня<strong>{taskProgress.done}/{taskProgress.total}</strong></div><div className="legend-row"><span className="dot" />Платежи месяца<strong>{paidBills}/{monthBills.length}</strong></div>
+            <p className="small muted">Каждая задача, подзадача и оплаченный платёж — один выполненный пункт.</p>
           </div>
         </section>
 
@@ -315,12 +319,12 @@ export default function Today() {
           <div className="section-title" style={{ marginTop: 0 }}><h2>Прогресс проектов</h2><button className="text-button" type="button" onClick={() => navigate("/projects")}>Все проекты</button></div>
           <div className="plain-list">
             {data.projects.slice(0, 4).map((project) => {
-              const minutes = data.timeLogs.filter((log) => log.projectId === project.id && localDayKey(log.start) === today).reduce((sum, log) => sum + log.minutes, 0);
+              const progress = completion(data.tasks.filter(task => task.projectId === project.id));
               return (
                 <div className="list-row" key={project.id}>
                   <span className="dot" style={{ background: projectColor[project.type] }} />
                   <div className="list-row-main"><strong>{project.name}</strong><span>{projectTypeLabel[project.type]} · {project.nextStep}</span></div>
-                  <div className="list-row-value">{formatDuration(minutes)}<span className="muted" style={{ display: "block", fontSize: 10 }}>из {formatDuration(project.dailyMinutesGoal)}</span></div>
+                  <div className="list-row-value">{progress.percent}%<span className="muted" style={{ display: "block", fontSize: 10 }}>{progress.done} из {progress.total} задач</span></div>
                 </div>
               );
             })}

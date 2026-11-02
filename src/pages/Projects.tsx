@@ -1,3 +1,4 @@
+import { completion } from "@contracts/completion";
 import { TaskCompletion } from "@/components/TaskCompletion";
 import { isStandaloneTask, remainingMinutes } from "@contracts/plannerState";
 import { SharedAccess } from "@/components/SharedAccess";
@@ -86,13 +87,13 @@ export default function Projects() {
     }
   };
 
-  const totalWeekGoal = data.projects.reduce((sum, project) => sum + project.weeklyMinutesGoal, 0);
-  const totalWeekMinutes = data.timeLogs.filter((log) => Date.now() - log.start.getTime() < 7 * 86_400_000).reduce((sum, log) => sum + log.minutes, 0);
+  const overall = completion(data.tasks.filter(task => task.projectId));
+
 
   return (
     <div className="page">
       <div className="page-header">
-        <div><p className="eyebrow">Не список желаний, а рабочие этапы</p><h1>Проекты</h1><p className="subtitle">Видно, куда уходит время, что движется и сколько часов нужно до дедлайна.</p></div>
+        <div><p className="eyebrow">Не список желаний, а рабочие этапы</p><h1>Проекты</h1><p className="subtitle">Прогресс по выполненным задачам и подзадачам. Фокус-таймер — по желанию.</p></div>
         <div className="action-row quick-add-desktop">
           <button className="button button-ghost" type="button" onClick={() => openTimer()}><Timer size={18} />{data.activeTimer ? "Таймер идёт" : "Фокус"}</button>
           <button className="button button-primary" type="button" onClick={() => setNewProject(true)}><Plus size={18} />Новый проект</button>
@@ -100,7 +101,7 @@ export default function Projects() {
       </div>
 
       <section className="card dark-card" style={{ marginBottom: 20, display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
-        <div style={{ flex: 1, minWidth: 230 }}><p className="eyebrow" style={{ color: "oklch(0.74 0.02 70)" }}>Недельный фокус</p><p className="card-value number">{formatDuration(totalWeekMinutes)} <span style={{ fontSize: 16, fontWeight: 500 }}>из {formatDuration(totalWeekGoal)}</span></p><p className="small muted">Записывайте реальные сессии — план будет становиться точнее.</p></div>
+        <div style={{ flex: 1, minWidth: 230 }}><p className="eyebrow" style={{ color: "oklch(0.74 0.02 70)" }}>Выполнение проектов</p><p className="card-value number">{overall.done} <span style={{ fontSize: 16, fontWeight: 500 }}>из {overall.total} задач</span></p><p className="small muted">Отмечайте задачи и подзадачи — прогресс пересчитывается автоматически. Фокус-таймер необязателен.</p></div>
         <button className="button button-primary" type="button" onClick={() => openTimer()}>{data.activeTimer ? <Square size={17} /> : <Play size={17} />}{data.activeTimer ? "Завершить сессию" : "Начать фокус"}</button>
       </section>
 
@@ -109,17 +110,17 @@ export default function Projects() {
         {data.projects.filter(project => !viewMonth || project.deadline?.startsWith(viewMonth) || data.tasks.some(task => task.projectId === project.id && task.due?.startsWith(viewMonth))).map((project) => {
           const projectTasks = data.tasks.filter((task) => task.projectId === project.id);
           const openTasks = projectTasks.filter((task) => task.status !== "done");
-          const todayMinutes = data.timeLogs.filter((log) => log.projectId === project.id && localDayKey(log.start) === today).reduce((sum, log) => sum + log.minutes, 0);
-          const dailyPercent = Math.min(100, Math.round(todayMinutes / Math.max(1, project.dailyMinutesGoal) * 100));
+          const progress = completion(projectTasks);
+
           const daysLeft = daysUntil(project.deadline);
-          const remainingEstimate = openTasks.reduce((sum, task) => sum + task.estimateMin, 0);
-          const neededPerDay = Number.isFinite(daysLeft) && daysLeft > 0 ? Math.ceil(remainingEstimate / daysLeft) : remainingEstimate;
+
+
           const chart = Array.from({ length: 14 }, (_, index) => {
             const date = new Date(); date.setDate(date.getDate() - (13 - index));
             const key = localDayKey(date);
-            return data.timeLogs.filter((log) => log.projectId === project.id && localDayKey(log.start) === key).reduce((sum, log) => sum + log.minutes, 0);
+            return projectTasks.filter(task => task.status === "done" && task.completedAt && localDayKey(task.completedAt) === key).length;
           });
-          const chartMax = Math.max(60, ...chart);
+          const chartMax = Math.max(1, ...chart);
           const linkedMoney = data.transactions.filter(row => row.projectId === project.id).reduce((result, row) => {
             const total = result[row.currency] ??= { income: 0, expense: 0 };
             total[row.kind === "income" ? "income" : "expense"] += row.amount;
@@ -133,16 +134,16 @@ export default function Projects() {
                 <div className="project-title"><h3>{project.name} {project.workspaceId && <span className="badge">Общее</span>}</h3><p>{projectTypeLabel[project.type]} · {openTasks.length} открытых задач</p></div>
                 <span className={`badge ${project.status === "active" || project.status === "done" ? "badge-success" : "badge-warning"}`}>{project.status === "active" ? "В работе" : project.status === "done" ? "Завершён" : "Пауза"}</span>
               </div>
-              <div className="progress-track" aria-label={`${dailyPercent}% дневной цели`}><div className="progress-fill" style={{ transform: `scaleX(${dailyPercent / 100})` }} /></div>
-              <div className="project-stats"><span>{formatDuration(todayMinutes)} из {formatDuration(project.dailyMinutesGoal)} сегодня</span><strong>{dailyPercent}%</strong></div>
-              <div className="sparkline" aria-label="Часы за последние 14 дней">
-                {chart.map((minutes, index) => <span key={index} style={{ height: `${Math.max(5, minutes / chartMax * 100)}%`, opacity: minutes ? 0.8 : 0.16 }} title={`${minutes} минут`} />)}
+              <div className="progress-track" aria-label={`${progress.percent}% задач выполнено`}><div className="progress-fill" style={{ transform: `scaleX(${progress.percent / 100})` }} /></div>
+              <div className="project-stats"><span>Выполнено {progress.done} из {progress.total} задач</span><strong>{progress.percent}%</strong></div>
+              <div className="sparkline" aria-label="Выполненные задачи за последние 14 дней">
+                {chart.map((minutes, index) => <span key={index} style={{ height: `${Math.max(5, minutes / chartMax * 100)}%`, opacity: minutes ? 0.8 : 0.16 }} title={`${minutes} задач`} />)}
               </div>
               <div className="action-row" style={{ margin: "12px 0" }}><button className="button button-ghost button-small" onClick={() => setEditingProject(project)}>Редактировать проект</button><button className="button button-primary button-small" onClick={() => setNewTask({ projectId: project.id })}><Plus size={15} />Новая задача</button></div>
               <div className="project-next"><span>Ближайший шаг</span>{project.nextStep || "Определите следующее конкретное действие"}</div>
               <div className="project-stats" style={{ marginBottom: 14 }}>
                 <span><CalendarRange size={13} style={{ display: "inline", marginRight: 4 }} />{project.deadline ? `${daysLeft} дн. до дедлайна` : "Без дедлайна"}</span>
-                {remainingEstimate > 0 && <strong>{formatDuration(neededPerDay)}/день</strong>}
+
               </div>
               <div className="project-profit"><strong><TrendingUp size={14} />Финансы проекта</strong>{Object.entries(linkedMoney).length ? Object.entries(linkedMoney).map(([code, money]) => <span key={code}>Прибыль {formatMoney(money.income-money.expense, code)} <small>· доход {formatMoney(money.income, code)} / расходы {formatMoney(money.expense, code)}</small></span>) : <span>Пока нет операций · план {formatMoney(project.expectedIncome, data.settings?.currency)}</span>}</div>
               <div className="project-profit"><strong>Ожидается после сдачи</strong>{(data.pendingTransactions ?? []).filter(t => t.projectId === project.id).map(t => <span key={t.id}>{formatMoney(t.amount, t.currency)}{t.expectedOn ? ` · ${t.expectedOn}` : ""}</span>)}<button className="text-button" onClick={() => setPaymentProject(project)}>+ Ожидаемая оплата</button></div>
@@ -162,7 +163,7 @@ export default function Projects() {
         })}
       </div>
 
-      {data.projects.length === 0 && <section className="card empty-state"><FolderKanban size={32} /><strong>Создайте первый проект</strong><p>Разбейте результат на этапы и задайте реалистичную цель часов.</p><button className="button button-primary" type="button" onClick={() => setNewProject(true)}>Новый проект</button></section>}
+      {data.projects.length === 0 && <section className="card empty-state"><FolderKanban size={32} /><strong>Создайте первый проект</strong><p>Разбейте результат на этапы и задачи.</p><button className="button button-primary" type="button" onClick={() => setNewProject(true)}>Новый проект</button></section>}
 
       <section className="card" style={{ marginTop: 20 }}>
         <div className="section-title" style={{ marginTop: 0 }}><h2>Последние рабочие сессии</h2><Clock3 size={19} color="var(--text-soft)" /></div>
@@ -184,8 +185,6 @@ export default function Projects() {
         { key: "deadline", label: "Срок сдачи", type: "date" },
         { key: "expectedIncome", label: `Плановая сумма, ${data.settings?.currency ?? "TJS"}`, type: "money", hint: "Это ориентир проекта. Реальную ожидаемую оплату добавляйте через «Ожидаемая оплата»." },
         { key: "nextStep", label: "Ближайший шаг", type: "textarea" },
-        { key: "dailyMinutesGoal", label: "Минут в день", type: "number" },
-        { key: "weeklyMinutesGoal", label: "Минут в неделю", type: "number" },
       ]} schema={projectUpdateSchema} onClose={() => setEditingProject(null)} onSave={async value => { await updateProject.mutateAsync(projectUpdateSchema.parse(value)); await refresh(); }} />}
       {timerOpen && timerProject && <TimerModal project={timerProject} data={data} onProjectChange={setTimerProject} onClose={() => setTimerOpen(false)} onStart={(input) => startTimer.mutate(input)} onStop={() => stopTimer.mutate()} pending={startTimer.isPending || stopTimer.isPending} />}
     </div>
@@ -198,8 +197,8 @@ function NewProjectModal({ onClose, data }: { onClose: () => void; data: LayoutC
   const [name, setName] = useState("");
   const [type, setType] = useState<"money" | "study" | "personal" | "agency">("personal");
   const [deadline, setDeadline] = useState("");
-  const [dailyMinutesGoal, setDailyMinutesGoal] = useState(60);
-  const [weeklyMinutesGoal, setWeeklyMinutesGoal] = useState(300);
+
+
   const [expectedIncome, setExpectedIncome] = useState(0);
   const [error, setError] = useState("");
   const create = trpc.planner.projects.create.useMutation({
@@ -209,7 +208,7 @@ function NewProjectModal({ onClose, data }: { onClose: () => void; data: LayoutC
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (!name.trim()) return setError("Дайте проекту понятное название");
-    create.mutate({ id: crypto.randomUUID(), name: name.trim(), workspaceId: workspaceId || null, type, deadline: deadline || undefined, dailyMinutesGoal, weeklyMinutesGoal, expectedIncome: Math.round(expectedIncome * 100) });
+    create.mutate({ id: crypto.randomUUID(), name: name.trim(), workspaceId: workspaceId || null, type, deadline: deadline || undefined, dailyMinutesGoal: 0, weeklyMinutesGoal: 0, expectedIncome: Math.round(expectedIncome * 100) });
   };
   return (
     <Modal title="Новый проект" onClose={onClose}>
@@ -219,10 +218,6 @@ function NewProjectModal({ onClose, data }: { onClose: () => void; data: LayoutC
         <div className="form-row">
           <div className="field"><label htmlFor="new-project-type">Тип</label><AppSelect id="new-project-type" className="select" value={type} onChange={(event) => setType(event.target.value as typeof type)}>{Object.entries(projectTypeLabel).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</AppSelect></div>
           <div className="field"><label htmlFor="new-project-deadline">Дедлайн</label><DateField id="new-project-deadline" className="input" value={deadline} onChange={(event) => setDeadline(event.target.value)} /></div>
-        </div>
-        <div className="form-row">
-          <div className="field"><label htmlFor="new-project-daily">Цель в день, минут</label><input id="new-project-daily" className="input" type="number" min={0} step={15} value={dailyMinutesGoal} onChange={(event) => setDailyMinutesGoal(Number(event.target.value))} /></div>
-          <div className="field"><label htmlFor="new-project-weekly">Цель в неделю, минут</label><input id="new-project-weekly" className="input" type="number" min={0} step={30} value={weeklyMinutesGoal} onChange={(event) => setWeeklyMinutesGoal(Number(event.target.value))} /></div>
         </div>
         {(type === "money" || type === "agency") && <div className="field"><label htmlFor="new-project-income">Плановая прибыль, {data.settings?.currency ?? "TJS"}</label><input id="new-project-income" className="input" type="number" min={0} step={1000} value={expectedIncome} onChange={(event) => setExpectedIncome(Number(event.target.value))} /></div>}
         {error && <p className="field-error" role="alert">{error}</p>}
