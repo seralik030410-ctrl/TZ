@@ -29,7 +29,7 @@ export function QuickAdd({ kind, data, onClose, initialProjectId = "", initialSt
   const [workspaceId, setWorkspaceId] = useState("");
   const [projectId, setProjectId] = useState(initialProjectId);
   const [stageId, setStageId] = useState(initialStageId ?? data.stages.find(s => s.projectId === initialProjectId)?.id ?? "");
-  const [incomeStatus, setIncomeStatus] = useState<"pending" | "posted">("pending");
+  const [incomeStatus, setIncomeStatus] = useState<"pending" | "posted">(initialProjectId ? "pending" : "posted");
   const [expectedOn, setExpectedOn] = useState(data.projects.find(p => p.id === initialProjectId)?.deadline ?? "");
   const [scheduleItemId, setScheduleItemId] = useState("");
   const [isMit, setIsMit] = useState(false);

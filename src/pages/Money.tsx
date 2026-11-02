@@ -1,10 +1,10 @@
+import { cashBalance } from "@contracts/cashBalance";
 import { DebtSummary } from "@/components/DebtSummary";
-import { daysLeftInMonth, normalizeCurrency } from "@contracts/shared";
+import { normalizeCurrency } from "@contracts/shared";
 import { useState } from "react";
 import { useOutletContext } from "react-router";
-import { ArrowDownLeft, ArrowUpRight, Plus, ReceiptText, ShieldCheck, Trash2, WalletCards } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, Plus, ReceiptText, Trash2, WalletCards } from "lucide-react";
 import { toast } from "sonner";
-import { safeToSpendToday } from "@contracts/planning";
 import { trpc } from "@/providers/trpc";
 import { RecurringBills } from "@/components/RecurringBills";
 import { formatMoney, localDayKey, type LayoutContext } from "@/lib/planner";
@@ -24,12 +24,10 @@ export default function Money() {
   const monthIncome = monthTransactions.filter((transaction) => transaction.kind === "income");
   const spent = monthExpenses.reduce((sum, transaction) => sum + transaction.amount, 0);
   const earned = monthIncome.reduce((sum, transaction) => sum + transaction.amount, 0);
-  const monthlyLimit = data.settings?.monthlyLimit ?? 0;
-  const mandatoryPayments = data.recurringBills.filter(bill => bill.currency === currency && bill.paidThrough !== month).reduce((sum,bill) => sum + bill.amount, 0);
-  const remaining = monthlyLimit > 0 ? monthlyLimit - spent - mandatoryPayments - (data.settings?.monthlySavings ?? 0) - (data.settings?.cushion ?? 0) : 0;
-  const spentToday = data.transactions.filter((transaction) => transaction.kind === "expense" && localDayKey(transaction.happenedAt) === today).reduce((sum, transaction) => sum + transaction.amount, 0);
-  const safeMonthlySpend = safeToSpendToday({ monthlyLimit, spentThisMonth: spent, mandatoryPayments, savingsContributions: data.settings?.monthlySavings ?? 0, cushion: data.settings?.cushion ?? 0, daysRemaining: daysLeftInMonth(today) });
-  const safeSpend = monthlyLimit || data.settings?.dailyLimit ? Math.min(monthlyLimit ? safeMonthlySpend : Number.POSITIVE_INFINITY, data.settings?.dailyLimit ? Math.max(0, data.settings.dailyLimit - spentToday) : Number.POSITIVE_INFINITY) : 0;
+  const balance = cashBalance(data.transactions, currency);
+  const received = data.transactions.filter(t => t.kind === "income").reduce((sum,t) => sum+t.amount,0);
+  const totalSpent = data.transactions.filter(t => t.kind === "expense").reduce((sum,t) => sum+t.amount,0);
+  const spentToday = data.transactions.filter(t => t.kind === "expense" && localDayKey(t.happenedAt) === today).reduce((sum,t) => sum+t.amount,0);
 
   const remove = trpc.planner.money.remove.useMutation({
     onSuccess: async () => { await utils.planner.bootstrap.invalidate(); toast.success("Операция перемещена в архив"); },
@@ -54,26 +52,26 @@ export default function Money() {
   return (
     <div className="page">
       <div className="page-header">
-        <div><p className="eyebrow">Деньги без ежедневной тревоги</p><h1>Деньги</h1><p className="subtitle">Лимиты, реальные операции и спокойный ответ на вопрос: сколько можно потратить сегодня?</p></div>
+        <div><p className="eyebrow">Деньги без ежедневной тревоги</p><h1>Деньги</h1><p className="subtitle">Полученные деньги, расходы и оставшийся баланс.</p></div>
         <div className="action-row quick-add-desktop"><button className="button button-primary" type="button" onClick={() => openQuickAdd("expense")}><Plus size={17} />Трата</button><button className="button button-ghost" type="button" onClick={() => openQuickAdd("income")}><Plus size={17} />Доход</button></div>
       </div>
 
       <div className="money-hero">
         <section className="card dark-card">
-          <p className="eyebrow" style={{ color: "oklch(0.74 0.02 70)" }}><ShieldCheck size={14} style={{ display: "inline", marginRight: 6 }} />С учётом подушки и оставшихся дней</p>
-          <p className="safe-value number">{monthlyLimit > 0 || data.settings?.dailyLimit ? formatMoney(safeSpend, currency) : "Задайте бюджет"}</p>
-          <p className="subtitle">безопасно потратить сегодня</p>
+          <p className="eyebrow" style={{ color: "oklch(0.74 0.02 70)" }}>Полученные деньги минус расходы</p>
+          <p className="safe-value number">{formatMoney(balance, currency)}</p>
+          <p className="subtitle">осталось денег</p>
+          <p className="small">Перевод пополняет остаток, каждая трата уменьшает его. Остаток переносится на следующий месяц.</p>
           <div className="budget-grid" style={{ marginTop: 24 }}>
-            <div className="budget-stat"><strong className="number">{formatMoney(spentToday, currency)}</strong><span>потрачено сегодня</span></div>
-            <div className="budget-stat"><strong className="number">{formatMoney(data.settings?.dailyLimit ?? 0, currency)}</strong><span>дневной лимит</span></div>
-            <div className="budget-stat"><strong className="number">{formatMoney(Math.max(0, (data.settings?.dailyLimit ?? 0) - spentToday), currency)}</strong><span>осталось по лимиту</span></div>
+            <div className="budget-stat"><strong>{formatMoney(received,currency)}</strong><span>всего получено</span></div>
+            <div className="budget-stat"><strong>{formatMoney(totalSpent,currency)}</strong><span>всего потрачено</span></div>
+            <div className="budget-stat"><strong>{formatMoney(spentToday,currency)}</strong><span>потрачено сегодня</span></div>
           </div>
         </section>
         <section className="card">
-          <p className="card-label">Месячный бюджет</p>
-          <p className="card-value number">{monthlyLimit > 0 ? formatMoney(remaining, currency) : "Не задан"}</p>
-          <p className="small muted">{monthlyLimit > 0 ? `с учётом обязательных платежей, накоплений и подушки из ${formatMoney(monthlyLimit, currency)}` : "Укажите месячный бюджет в настройках"}</p>
-          {monthlyLimit > 0 && <><div className="progress-track"><div className="progress-fill" style={{ transform: `scaleX(${Math.min(1, spent / Math.max(1, monthlyLimit))})`, background: spent > monthlyLimit ? "var(--danger)" : "var(--accent)" }} /></div><div className="project-stats"><span>Использовано {Math.round(spent / Math.max(1, monthlyLimit) * 100)}%</span><span>{daysLeftInMonth(today)} дн. осталось</span></div></>}
+          <p className="card-label">Движение за месяц</p>
+          <p className="card-value number">{formatMoney(earned-spent,currency)}</p>
+          <p className="small muted">Разница полученных денег и расходов за текущий месяц.</p>
           <div className="plain-list" style={{ marginTop: 12 }}>
             <div className="list-row"><ArrowDownLeft size={18} color="var(--success)" /><div className="list-row-main"><strong>Доходы за месяц</strong></div><span className="list-row-value transaction-amount income">+{formatMoney(earned, currency)}</span></div>
             <div className="list-row"><ArrowUpRight size={18} color="var(--danger)" /><div className="list-row-main"><strong>Расходы за месяц</strong></div><span className="list-row-value transaction-amount expense">−{formatMoney(spent, currency)}</span></div>

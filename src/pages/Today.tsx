@@ -1,8 +1,9 @@
+import { cashBalance } from "@contracts/cashBalance";
 import { ScheduleTasks } from "@/components/ScheduleTasks";
 import { TaskCompletion } from "@/components/TaskCompletion";
 import { remainingMinutes, isStandaloneTask } from "@contracts/plannerState";
 import { scheduleForDay } from "@contracts/schedule";
-import { minutesInZone, daysLeftInMonth, normalizeCurrency } from "@contracts/shared";
+import { minutesInZone, normalizeCurrency } from "@contracts/shared";
 import { useEffect, useRef, useState } from "react";
 import { daySwipe } from "@contracts/daySwipe";
 import { dayInZone } from "@contracts/shared";
@@ -26,7 +27,7 @@ import {
   Timer,
   WalletCards,
 } from "lucide-react";
-import { getFreeWindows, safeToSpendToday } from "@contracts/planning";
+import { getFreeWindows } from "@contracts/planning";
 import { addCalendarDays } from "@contracts/shared";
 import {
   formatDuration,
@@ -123,20 +124,7 @@ export default function Today() {
   const overdue = data.tasks.filter((task) => task.status !== "done" && task.due && task.due < today);
   const todayTransactions = data.transactions.filter((transaction) => localDayKey(transaction.happenedAt) === today);
   const spentToday = todayTransactions.filter((transaction) => transaction.kind === "expense").reduce((sum, transaction) => sum + transaction.amount, 0);
-  const monthPrefix = today.slice(0, 7);
-  const spentMonth = data.transactions.filter((transaction) => transaction.kind === "expense" && localDayKey(transaction.happenedAt).startsWith(monthPrefix)).reduce((sum, transaction) => sum + transaction.amount, 0);
-  const mandatoryPayments = data.recurringBills.filter(bill => bill.currency === normalizeCurrency(data.settings?.currency) && bill.paidThrough !== monthPrefix).reduce((sum, bill) => sum + bill.amount, 0);
-  
-  const safeMonthlySpend = safeToSpendToday({
-    monthlyLimit: data.settings?.monthlyLimit ?? 0,
-    spentThisMonth: spentMonth,
-    mandatoryPayments,
-    savingsContributions: data.settings?.monthlySavings ?? 0,
-    cushion: data.settings?.cushion ?? 0,
-    daysRemaining: daysLeftInMonth(today),
-  });
-  const dailyRoom = data.settings?.dailyLimit ? Math.max(0, data.settings.dailyLimit - spentToday) : Number.POSITIVE_INFINITY;
-  const safeSpend = data.settings?.monthlyLimit || data.settings?.dailyLimit ? Math.min(data.settings?.monthlyLimit ? safeMonthlySpend : Number.POSITIVE_INFINITY, dailyRoom) : 0;
+  const balance = cashBalance(data.transactions, normalizeCurrency(data.settings?.currency));
 
   const focusMinutes = data.timeLogs.filter((log) => localDayKey(log.start) === today).reduce((sum, log) => sum + log.minutes, 0);
   const goalMinutes = data.projects.reduce((sum, project) => sum + project.dailyMinutesGoal, 0);
@@ -280,8 +268,8 @@ export default function Today() {
           </section>
           <section className="card metric-card">
             <WalletCards className="icon" size={19} />
-            <p className="card-label">Безопасно потратить</p>
-            <p className="card-value number">{data.settings?.monthlyLimit || data.settings?.dailyLimit ? formatMoney(safeSpend, data.settings?.currency) : "Бюджет не задан"}</p>
+            <p className="card-label">Осталось денег</p>
+            <p className="card-value number">{formatMoney(balance, data.settings?.currency)}</p>
             <p className="metric-footer">За выбранный день {formatMoney(spentToday, data.settings?.currency)}</p>
           </section>
           <section className="card metric-card">

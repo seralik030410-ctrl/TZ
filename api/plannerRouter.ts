@@ -409,6 +409,13 @@ export const plannerRouter = createRouter({
   }),
 
   bills: createRouter({
+    update: protectedQuery.input(z.object({ id: z.string().uuid(), name: z.string().trim().min(1).max(120), amount: money.positive(), dueDay: z.number().int().min(1).max(31) })).mutation(async ({ input }) => {
+      const { id, ...values } = input;
+      const [bill] = await getDb().select().from(recurringBills).where(and(privateScope(recurringBills), eq(recurringBills.id, id), eq(recurringBills.isDeleted, false)));
+      if (!bill) throw new TRPCError({ code: "NOT_FOUND", message: "Платёж не найден" });
+      await getDb().update(recurringBills).set({ ...values, updatedAt: new Date() }).where(and(privateScope(recurringBills), eq(recurringBills.id, id), eq(recurringBills.isDeleted, false)));
+      return { ok: true };
+    }),
     create: protectedQuery.input(z.object({ id: z.string().uuid(), name: z.string().trim().min(1).max(120), amount: money.positive(), currency: currencyCode.default("TJS"), dueDay: z.number().int().min(1).max(31), category: z.string().trim().min(1).max(80).default("Обязательные платежи") })).mutation(async ({ input }) => {
       await assertRetryOwner(getDb(), recurringBills, input.id);
       await getDb().insert(recurringBills).values(owned(input)).onDuplicateKeyUpdate({ set: { id: sql`id` } });

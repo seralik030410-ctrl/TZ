@@ -136,6 +136,13 @@ try {
   const [[renewedCount]] = await db.query<(RowDataPacket & { n: number })[]>("SELECT COUNT(*) n FROM transactions WHERE note='Monthly internet smoke' AND owner_id=?", [owner]);
   assert.equal(renewedCount.n, 2);
   console.log("PASS monthly bill renewal, concurrent checkbox submissions create one expense, friend access denied");
+  await call("planner.bills.update", { id: billId, name: "Интернет — 1", amount: 5500, dueDay: 15 });
+  const [[editedBill]] = await db.query<(RowDataPacket & { amount: number; due_day: number; paid_through: string | null })[]>("SELECT amount,due_day,paid_through FROM recurring_bills WHERE id=?", [billId]);
+  assert.equal(editedBill.amount, 5500); assert.equal(editedBill.due_day, 15); assert(editedBill.paid_through);
+  const [[originalExpense]] = await db.query<(RowDataPacket & { amount: number })[]>("SELECT amount FROM transactions WHERE note='Monthly internet smoke' LIMIT 1");
+  assert.equal(originalExpense.amount, 15000);
+  await assert.rejects(() => call("planner.bills.update", { id: billId, name: "Wrong owner", amount: 1, dueDay: 1 }, false, friend.cookie));
+  console.log("PASS bill editing preserves payment status/history and rejects friend changes");
   const korea = randomUUID(), farzona = randomUUID(), retainedTask = randomUUID();
   await call("planner.projects.create", { id: korea, name: "Корея", type: "personal" });
   await call("planner.stages.create", { id: farzona, projectId: korea, name: "Фарзона" });
